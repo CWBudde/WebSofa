@@ -1,0 +1,259 @@
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 900;
+    font-style: normal;
+    src: url('./montserrat-black-webfont.eot');
+    src: url('./montserrat-black-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-black-webfont.woff2') format('woff2'),
+         url('./montserrat-black-webfont.woff') format('woff'),
+         url('./montserrat-black-webfont.ttf') format('truetype'),
+         url('./montserrat-black-webfont.svg#montserratblack') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 800;
+    font-style: normal;
+    src: url('./montserrat-extrabold-webfont.eot');
+    src: url('./montserrat-extrabold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-extrabold-webfont.woff2') format('woff2'),
+         url('./montserrat-extrabold-webfont.woff') format('woff'),
+         url('./montserrat-extrabold-webfont.ttf') format('truetype'),
+         url('./montserrat-extrabold-webfont.svg#montserratextra_bold') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 700;
+    font-style: normal;
+    src: url('./montserrat-bold-webfont.eot');
+    src: url('./montserrat-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-bold-webfont.woff2') format('woff2'),
+         url('./montserrat-bold-webfont.woff') format('woff'),
+         url('./montserrat-bold-webfont.ttf') format('truetype'),
+         url('./montserrat-bold-webfont.svg#montserratbold') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 600;
+    font-style: normal;
+    src: url('./montserrat-semibold-webfont.eot');
+    src: url('./montserrat-semibold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-semibold-webfont.woff2') format('woff2'),
+         url('./montserrat-semibold-webfont.woff') format('woff'),
+         url('./montserrat-semibold-webfont.ttf') format('truetype'),
+         url('./montserrat-semibold-webfont.svg#montserratsemi_bold') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: normal;
+    font-style: normal;
+    src: url('./montserrat-regular-webfont.eot');
+    src: url('./montserrat-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-regular-webfont.woff2') format('woff2'),
+         url('./montserrat-regular-webfont.woff') format('woff'),
+         url('./montserrat-regular-webfont.ttf') format('truetype'),
+         url('./montserrat-regular-webfont.svg#montserratregular') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 300;
+    font-style: normal;
+    src: url('./montserrat-light-webfont.eot');
+    src: url('./montserrat-light-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-light-webfont.woff2') format('woff2'),
+         url('./montserrat-light-webfont.woff') format('woff'),
+         url('./montserrat-light-webfont.ttf') format('truetype'),
+         url('./montserrat-light-webfont.svg#montserratlight') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 200;
+    font-style: normal;
+    src: url('./montserrat-ultralight-webfont.eot');
+    src: url('./montserrat-ultralight-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-ultralight-webfont.woff2') format('woff2'),
+         url('./montserrat-ultralight-webfont.woff') format('woff'),
+         url('./montserrat-ultralight-webfont.ttf') format('truetype'),
+         url('./montserrat-ultralight-webfont.svg#montserratultra_light') format('svg');
+}
+
+@font-face
+{
+    font-family: 'montserrat';
+    font-weight: 100;
+    font-style: normal;
+    src: url('./montserrat-hairline-webfont.eot');
+    src: url('./montserrat-hairline-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./montserrat-hairline-webfont.woff2') format('woff2'),
+         url('./montserrat-hairline-webfont.woff') format('woff'),
+         url('./montserrat-hairline-webfont.ttf') format('truetype'),
+         url('./montserrat-hairline-webfont.svg#montserrathairline') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 900;
+    font-style: normal;
+    src: url('./roboto-black-webfont.eot');
+    src: url('./roboto-black-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-black-webfont.woff2') format('woff2'),
+         url('./roboto-black-webfont.woff') format('woff'),
+         url('./roboto-black-webfont.ttf') format('truetype'),
+         url('./roboto-black-webfont.svg#robotoblack') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 900;
+    font-style: italic;
+    src: url('./roboto-blackitalic-webfont.eot');
+    src: url('./roboto-blackitalic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-blackitalic-webfont.woff2') format('woff2'),
+         url('./roboto-blackitalic-webfont.woff') format('woff'),
+         url('./roboto-blackitalic-webfont.ttf') format('truetype'),
+         url('./roboto-blackitalic-webfont.svg#robotoblack_italic') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 700;
+    font-style: normal;
+    src: url('./roboto-bold-webfont.eot');
+    src: url('./roboto-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-bold-webfont.woff2') format('woff2'),
+         url('./roboto-bold-webfont.woff') format('woff'),
+         url('./roboto-bold-webfont.ttf') format('truetype'),
+         url('./roboto-bold-webfont.svg#robotobold') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 700;
+    font-style: italic;
+    src: url('./roboto-bolditalic-webfont.eot');
+    src: url('./roboto-bolditalic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-bolditalic-webfont.woff2') format('woff2'),
+         url('./roboto-bolditalic-webfont.woff') format('woff'),
+         url('./roboto-bolditalic-webfont.ttf') format('truetype'),
+         url('./roboto-bolditalic-webfont.svg#robotobold_italic') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: normal;
+    font-style: italic;
+    src: url('./roboto-italic-webfont.eot');
+    src: url('./roboto-italic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-italic-webfont.woff2') format('woff2'),
+         url('./roboto-italic-webfont.woff') format('woff'),
+         url('./roboto-italic-webfont.ttf') format('truetype'),
+         url('./roboto-italic-webfont.svg#robotoitalic') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 300;
+    font-style: normal;
+    src: url('./roboto-light-webfont.eot');
+    src: url('./roboto-light-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-light-webfont.woff2') format('woff2'),
+         url('./roboto-light-webfont.woff') format('woff'),
+         url('./roboto-light-webfont.ttf') format('truetype'),
+         url('./roboto-light-webfont.svg#robotolight') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 300;
+    font-style: italic;
+    src: url('./roboto-lightitalic-webfont.eot');
+    src: url('./roboto-lightitalic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-lightitalic-webfont.woff2') format('woff2'),
+         url('./roboto-lightitalic-webfont.woff') format('woff'),
+         url('./roboto-lightitalic-webfont.ttf') format('truetype'),
+         url('./roboto-lightitalic-webfont.svg#robotolight_italic') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 500;
+    font-style: normal;
+    src: url('./roboto-medium-webfont.eot');
+    src: url('./roboto-medium-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-medium-webfont.woff2') format('woff2'),
+         url('./roboto-medium-webfont.woff') format('woff'),
+         url('./roboto-medium-webfont.ttf') format('truetype'),
+         url('./roboto-medium-webfont.svg#robotomedium') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 500;
+    font-style: italic;
+    src: url('./roboto-mediumitalic-webfont.eot');
+    src: url('./roboto-mediumitalic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-mediumitalic-webfont.woff2') format('woff2'),
+         url('./roboto-mediumitalic-webfont.woff') format('woff'),
+         url('./roboto-mediumitalic-webfont.ttf') format('truetype'),
+         url('./roboto-mediumitalic-webfont.svg#robotomedium_italic') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: normal;
+    font-style: normal;
+    src: url('./roboto-regular-webfont.eot');
+    src: url('./roboto-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-regular-webfont.woff2') format('woff2'),
+         url('./roboto-regular-webfont.woff') format('woff'),
+         url('./roboto-regular-webfont.ttf') format('truetype'),
+         url('./roboto-regular-webfont.svg#robotoregular') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 200;
+    font-style: normal;
+    src: url('./roboto-thin-webfont.eot');
+    src: url('./roboto-thin-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-thin-webfont.woff2') format('woff2'),
+         url('./roboto-thin-webfont.woff') format('woff'),
+         url('./roboto-thin-webfont.ttf') format('truetype'),
+         url('./roboto-thin-webfont.svg#robotothin') format('svg');
+}
+
+@font-face
+{
+    font-family: 'Roboto';
+    font-weight: 200;
+    font-style: italic;
+    src: url('./roboto-thinitalic-webfont.eot');
+    src: url('./roboto-thinitalic-webfont.eot?#iefix') format('embedded-opentype'),
+         url('./roboto-thinitalic-webfont.woff2') format('woff2'),
+         url('./roboto-thinitalic-webfont.woff') format('woff'),
+         url('./roboto-thinitalic-webfont.ttf') format('truetype'),
+         url('./roboto-thinitalic-webfont.svg#robotothin_italic') format('svg');
+}

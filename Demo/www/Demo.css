@@ -1,0 +1,96 @@
+/* Standard elements */
+
+html {
+  font-size: 1em;
+  -webkit-text-size-adjust: 1em;
+  -ms-text-size-adjust: 1em;
+  font-family: Helvetica, Arial, sans-serif;
+
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+body {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-size: 100%;
+}
+
+h1 {
+  padding: 0.5em;
+  margin: 0;
+}
+
+/* Base elements */
+
+.TImageElement {
+  display: block;
+}
+
+.TDivElement {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.TButtonElement {
+  display: inline;
+  border: 0;
+  font-size: 1em;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.TButtonElement:focus {
+  outline: none;
+}
+
+/* Custom elements */
+
+.TMainScreen {
+  background-color: #FFF;
+  position: fixed;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+  z-index: -1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.THeader {
+  background-image: radial-gradient(at top, #E7665C, #CA3631);
+  box-shadow: 0px 0px 4px 0px rgba(0,0,0,0.75);
+}
+
+.TFileSelect {
+  margin: 1em;
+}
+
+.TFileSelect > .TInputTextElement {
+  border-radius: 3px;
+  border-width: 1px;
+  border-style: solid;
+  padding: 2px;
+}
+
+.TFileSelect > .TButtonElement {
+  margin: 0.5em;
+  border-radius: 2px;
+  border-width: 1px;
+  border-style: solid;
+  padding: 2px 1em;
+}
+
+.TTextAreaElement {
+  margin: 1em;
+}
