@@ -95,10 +95,16 @@ type
     property DelayCount: Integer read GetDelayCount;
   end;
 
+function LoadSofaFile(Buffer: JArrayBuffer): TSofaFile; export;
+
 implementation
 
 uses
-  W3C.WebAudio, WHATWG.Console;
+  WHATWG.Console;
+
+resourcestring
+  RStrIndexOutOfBounds = 'Index out of bounds (%d)';
+  RStrSofaConventionMissing = 'File does not contain the SOFA convention';
 
 
 { TSofaFile }
@@ -106,7 +112,7 @@ uses
 function TSofaFile.GetDelay(Index: Integer): Float;
 begin
   if (Index < 0) or (Index >= Length(FDelay)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FDelay[Index];
 end;
@@ -119,7 +125,7 @@ end;
 function TSofaFile.GetEmitterPositions(Index: Integer): TVector3;
 begin
   if (Index < 0) or (Index >= Length(FEmitterPositions)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FEmitterPositions[Index];
 end;
@@ -133,7 +139,7 @@ end;
 function TSofaFile.GetListenerPositions(Index: Integer): TVector3;
 begin
   if (Index < 0) or (Index >= Length(FListenerPositions)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FListenerPositions[Index];
 end;
@@ -141,7 +147,7 @@ end;
 function TSofaFile.GetReceiverPositions(Index: Integer): TVector3;
 begin
   if (Index < 0) or (Index >= Length(FReceiverPositions)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FReceiverPositions[Index];
 end;
@@ -149,7 +155,7 @@ end;
 function TSofaFile.GetSampleRate(Index: Integer): Float;
 begin
   if (Index < 0) or (Index >= Length(FSampleRate)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FSampleRate[Index];
 end;
@@ -162,7 +168,7 @@ end;
 function TSofaFile.GetSourcePositions(Index: Integer): TVector3;
 begin
   if (Index < 0) or (Index >= Length(FSourcePositions)) then
-    raise Exception.Create(Format('Index out of bounds (%d)', [Index]));
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
 
   Result := FSourcePositions[Index];
 end;
@@ -176,7 +182,7 @@ begin
   try
     HdfFile.LoadFromBuffer(Buffer);
     if HdfFile.GetAttribute('Conventions') <> 'SOFA' then
-      raise Exception.Create('File does not contain the SOFA convention');
+      raise Exception.Create(RStrSofaConventionMissing);
 
     for Index := 0 to HdfFile.DataObject.DataObjectCount - 1 do
       ReadDataObject(HdfFile.DataObject.DataObject[Index]);
@@ -192,9 +198,11 @@ procedure TSofaFile.ReadDataObject(DataObject: THdfDataObject);
   function GetDimension(Text: String): Integer;
   var
     TextPos: Integer;
+  const
+    CNetCdfDim = 'This is a netCDF dimension but not a netCDF variable.';
   begin
     Result := 0;
-    TextPos := Pos('This is a netCDF dimension but not a netCDF variable.', Text);
+    TextPos := Pos(CNetCdfDim, Text);
     if TextPos > 0 then
     begin
       Delete(Text, TextPos, 53);
@@ -209,42 +217,48 @@ procedure TSofaFile.ReadDataObject(DataObject: THdfDataObject);
     Result.Z := Position.Z * Sin(DegToRad(Position.Y));
   end;
 
+const
+  CClassIdentifier = 'CLASS';
+  CDimensionScaleIdentifier = 'DIMENSION_SCALE';
+  CNameIdentifier = 'NAME';
+  CTypeIdentifier = 'Type';
+  CCartesianIdentifier = 'cartesian';
 begin
   DataObject.Data.Position := 0;
   if DataObject.Name = 'M' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    FNumberOfMeasurements := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    FNumberOfMeasurements := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'R' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    FNumberOfReceivers := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    FNumberOfReceivers := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'E' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    FNumberOfEmitters := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    FNumberOfEmitters := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'N' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    FNumberOfDataSamples := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    FNumberOfDataSamples := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'S' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    var ItemCount := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    var ItemCount := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'I' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    var ItemCount := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    var ItemCount := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'C' then
   begin
-    Assert(DataObject.GetAttribute('CLASS') = 'DIMENSION_SCALE');
-    var ItemCount := GetDimension(DataObject.GetAttribute('NAME'));
+    Assert(DataObject.GetAttribute(CClassIdentifier) = CDimensionScaleIdentifier);
+    var ItemCount := GetDimension(DataObject.GetAttribute(CNameIdentifier));
   end
   else if DataObject.Name = 'ListenerPosition' then
   begin
@@ -253,8 +267,8 @@ begin
     Assert(DataObject.DataType.DataClass = 1);
 
     var IsCartesian := True;
-    if DataObject.HasAttribute('Type') then
-      IsCartesian := DataObject.GetAttribute('Type') = 'cartesian';
+    if DataObject.HasAttribute(CTypeIdentifier) then
+      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
 
     for var Index := 0 to ItemCount - 1 do
     begin
@@ -274,8 +288,8 @@ begin
     Assert(DataObject.DataType.DataClass = 1);
 
     var IsCartesian := True;
-    if DataObject.HasAttribute('Type') then
-      IsCartesian := DataObject.GetAttribute('Type') = 'cartesian';
+    if DataObject.HasAttribute(CTypeIdentifier) then
+      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
 
     for var Index := 0 to ItemCount - 1 do
     begin
@@ -296,8 +310,8 @@ begin
     Assert(DataObject.DataType.DataClass = 1);
 
     var IsCartesian := True;
-    if DataObject.HasAttribute('Type') then
-      IsCartesian := DataObject.GetAttribute('Type') = 'cartesian';
+    if DataObject.HasAttribute(CTypeIdentifier) then
+      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
 
     for var Index := 0 to ItemCount - 1 do
     begin
@@ -317,8 +331,8 @@ begin
     Assert(DataObject.DataType.DataClass = 1);
 
     var IsCartesian := True;
-    if DataObject.HasAttribute('Type') then
-      IsCartesian := DataObject.GetAttribute('Type') = 'cartesian';
+    if DataObject.HasAttribute(CTypeIdentifier) then
+      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
 
     for var Index := 0 to ItemCount - 1 do
     begin
@@ -438,6 +452,12 @@ end;
 procedure TSofaFile.SaveToBuffer(Buffer: JArrayBuffer);
 begin
   raise Exception.Create('Not yet implemented');
+end;
+
+function LoadSofaFile(Buffer: JArrayBuffer): TSofaFile;
+begin
+  Result := TSofaFile.Create;
+  Result.LoadFromBuffer(Buffer);
 end;
 
 end.
