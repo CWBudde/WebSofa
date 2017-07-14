@@ -94,7 +94,6 @@ begin
 
   if GAudioContext.SampleRate <> Hrtfs.SampleRate then
   begin
-    Console.Log('Samplerate adaption');
     var OfflineAudioContext: JOfflineAudioContext;
 
     asm

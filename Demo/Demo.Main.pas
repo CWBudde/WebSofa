@@ -34,12 +34,22 @@ type
     procedure Paint;
   end;
 
+  TGlyph = class(TImageElement)
+  private
+    FName: String;
+  public
+    constructor Create(Owner: IHtmlElementOwner; TrackName: String); overload;
+
+    property Name: String read FName;
+  end;
+
   TMainScreen = class(TDivElement)
   private
     FHeader: THeader;
     FTextArea: TTextAreaElement;
     FSofaFile: TSofaFile;
     FPlane2D: TPlane2D;
+    FGlyphs: array of TGlyph;
     FHrtfs: THrtfs;
     FTracks: array of TTrack;
 
@@ -99,13 +109,14 @@ end;
 
 procedure TPlane2D.Resize;
 begin
-(*
-  var MinSize := Round(0.8 * min(Window.innerWidth, Window.innerHeight));
+  var R := CanvasElement.getBoundingClientRect;
+
+  var MinSize := Round(min(Window.innerWidth - R.left, Window.innerHeight - R.top));
   Style.width := IntToStr(MinSize) + 'px';
   Style.height := IntToStr(MinSize) + 'px';
-*)
 
-  var R := CanvasElement.getBoundingClientRect;
+  R := CanvasElement.getBoundingClientRect;
+
   CanvasElement.Width := Round(Application.PixelRatio * R.width);
   CanvasElement.Height := Round(Application.PixelRatio * R.height);
 
@@ -127,6 +138,19 @@ begin
   Context.arc(0.5 * Size, 0.5 * Size, 0.05 * R, 0.3 - 0.5 * Pi, 2 * Pi - 0.3 - 0.5 * Pi);
   Context.ClosePath;
   Context.stroke;
+end;
+
+
+{ TGlyph }
+
+constructor TGlyph.Create(Owner: IHtmlElementOwner; TrackName: String);
+begin
+  inherited Create(Owner);
+
+  FName := TrackName;
+
+  ImageElement.src := 'SVG\' + TrackName + '.svg';
+  ImageElement.style.display := 'none';
 end;
 
 
@@ -152,6 +176,7 @@ begin
 
   FPlane2D := TPlane2D.Create(Self as IHtmlElementOwner);
   FPlane2D.Resize;
+  FPlane2D.CanvasElement.style.display := 'none';
 
   Window.addEventListener('resize', lambda
       FPlane2D.Resize;
@@ -159,6 +184,7 @@ begin
 
   InitializeAudioEngine;
 
+(*
   var Request := JXMLHttpRequest.Create;
   Request.onload := lambda
     LoadSofaFile(JArrayBuffer(Request.response));
@@ -167,6 +193,7 @@ begin
   Request.responseType := 'arraybuffer';
   Request.open('GET', 'default.sofa', true);
   Request.send;
+*)
 end;
 
 procedure TMainScreen.LoadSofaFile(Buffer: JArrayBuffer);
@@ -190,6 +217,8 @@ begin
     end;
 
     FTracks.Add(Track);
+
+    FGlyphs.Add(TGlyph.Create(Self as IHtmlElementOwner, TrackName));
   end;
 end;
 
@@ -254,17 +283,30 @@ end;
 
 procedure TMainScreen.RandomizeHrtfPositions;
 begin
-  var Positions: array of TVector3;
+  FPlane2D.Style.removeProperty('display');
+
+  var StartTime := GAudioContext.currentTime;
+
   for var Track in FTracks do
   begin
     var Index := RandomInt(FHRTFs.MeasurementCount);
     var CurrentPosition := FHRTFs.Measurement[Index].Position;
-    Positions.Add(CurrentPosition);
+
+    for var Glyph in FGlyphs do
+    begin
+      if Glyph.Name = Track.Text then
+      begin
+        var R := FPlane2D.CanvasElement.getBoundingClientRect;
+        var Scale := Sqrt(Sqr(CurrentPosition.X) + Sqr(CurrentPosition.Y));
+        Glyph.Style.removeProperty('display');
+        Glyph.Style.left := FloatToStr(R.left + 0.5 * R.width - 0.45 * CurrentPosition.Y / Scale * R.width - 16) + 'px';
+        Glyph.Style.top := FloatToStr(R.top + 0.5 * R.height - 0.45 * CurrentPosition.X / Scale * R.height - 16) + 'px';
+      end;
+    end;
+
     Track.FromHrtf(FHRTFs, Index);
-    Track.AudioBufferSource.Start(0);
+    Track.AudioBufferSource.Start(StartTime);
   end;
 end;
-
-initialization
 
 end.

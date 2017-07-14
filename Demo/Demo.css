@@ -107,3 +107,8 @@ h1 {
 .TTextAreaElement {
   margin: 1em;
 }
+
+.TGlyph {
+  position: absolute;
+  width: 32px;
+}
