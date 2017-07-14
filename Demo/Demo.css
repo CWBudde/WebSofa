@@ -70,6 +70,19 @@ h1 {
 .THeader {
   background-image: radial-gradient(at top, #E7665C, #CA3631);
   box-shadow: 0px 0px 4px 0px rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+}
+
+.THeader > h1 {
+  color: #FFF;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.75);
+  flex: 1;
+}
+
+.TPlane2D {
+  flex: 1;
+  margin: 0 auto;
 }
 
 .TFileSelect {

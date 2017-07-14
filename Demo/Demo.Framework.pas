@@ -47,6 +47,8 @@ type
     constructor Create(Element: JHTMLElement); overload; virtual;
     destructor Destroy; override;
 
+    procedure Resize; virtual; empty;
+
     property Name: String read FName write SetName;
     property Visible: Boolean read GetVisible write SetVisible;
     property Style: JCSS2Properties read (JCSS2Properties(Element.Style));
@@ -263,6 +265,7 @@ type
 
   TApplication = class(IHtmlElementOwner)
   private
+    FPixelRatio: Float;
     FElements: array of THtmlElement;
     function GetHtmlElement: JHTMLElement;
   public
@@ -275,6 +278,8 @@ type
 
     function CreateElement(HtmlElementClass: THtmlElementClass): THtmlElement;
     procedure Run; empty;
+
+    property PixelRatio: Float read FPixelRatio;
   end;
 
 var
@@ -720,6 +725,12 @@ constructor TApplication.Create;
 begin
   // add cordova events
   Document.addEventListener('deviceready', @DeviceReady);
+
+  // determine pixel ratio
+  FPixelRatio := 1;
+  asm
+    @FPixelRatio = window.devicePixelRatio || 1;
+  end;
 end;
 
 destructor TApplication.Destroy;

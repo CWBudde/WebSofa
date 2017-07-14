@@ -13,6 +13,102 @@ var TObject={
 }
 function StrDeleteRight(s,n) { return s.substr(0, s.length-n) }
 function SetLength(s,n) { if (s.v.length>n) s.v=s.v.substring(0,n);else while (s.v.length<n) s.v+=" "; }
+function RandomInt(i) { return Math.floor(Random()*i) }
+/*
+
+Copyright (C) 2010 by Johannes Baag�e <baagoe@baagoe.org>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+From http://baagoe.com/en/RandomMusings/javascript/
+*/
+function $alea() {
+  return (function(args) {
+    // Johannes Baagøe <baagoe@baagoe.com>, 2010
+    var s0 = 0;
+    var s1 = 0;
+    var s2 = 0;
+    var c = 1;
+
+    if (args.length == 0) {
+      args = [+new Date];
+    }
+    var mash = function() {
+       var n = 0xefc8249d;
+    
+       var mash = function(data) {
+         data = data.toString();
+         for (var i = 0; i < data.length; i++) {
+           n += data.charCodeAt(i);
+           var h = 0.02519603282416938 * n;
+           n = h >>> 0;
+           h -= n;
+           h *= n;
+           n = h >>> 0;
+           h -= n;
+           n += h * 0x100000000; // 2^32
+         }
+         return (n >>> 0) * 2.3283064365386963e-10; // 2^-32
+       };
+    
+       //mash.version = 'Mash 0.9';
+       return mash;
+    }();
+    s0 = mash(' ');
+    s1 = mash(' ');
+    s2 = mash(' ');
+
+    for (var i = 0; i < args.length; i++) {
+      s0 -= mash(args[i]);
+      if (s0 < 0) {
+        s0 += 1;
+      }
+      s1 -= mash(args[i]);
+      if (s1 < 0) {
+        s1 += 1;
+      }
+      s2 -= mash(args[i]);
+      if (s2 < 0) {
+        s2 += 1;
+      }
+    }
+    mash = null;
+
+    var random = function() {
+      var t = 2091639 * s0 + c * 2.3283064365386963e-10; // 2^-32
+      s0 = s1;
+      s1 = s2;
+      return s2 = t - (c = t | 0);
+    };
+    /*random.uint32 = function() {
+      return random() * 0x100000000; // 2^32
+    };
+    random.fract53 = function() {
+      return random() +
+        (random() * 0x200000 | 0) * 1.1102230246251565e-16; // 2^-53
+    };*/
+    //random.version = 'Alea 0.9';
+    random.args = args;
+    return random;
+
+  } (Array.prototype.slice.call(arguments)));
+};var Random = $alea();
 function Log2(x) { return Math.log(x)/Math.LN2 }
 var Exception={
 	$ClassName: "Exception",
@@ -26,6 +122,7 @@ var EAssertionFailed={
 	$Init: Exception.$Init
 }
 function Delete(s,i,n) { var v=s.v; if ((i<=0)||(i>v.length)||(n<=0)) return; s.v=v.substr(0,i-1)+v.substr(i+n-1); }
+function DegToRad(v) { return v*(Math.PI/180) }
 function Chr(c) {
 	if (c<=0xFFFF)
 		return String.fromCharCode(c);
@@ -39,6 +136,17 @@ function $NewDyn(c,z) {
 	return i
 }
 function $New(c) { var i={ClassType:c}; c.$Init(i); return i }
+function $Is(o,c) {
+	if (o===null) return false;
+	return $Inh(o.ClassType,c);
+}
+;
+function $Inh(s,c) {
+	if (s===null) return false;
+	while ((s)&&(s!==c)) s=s.$Parent;
+	return (s)?true:false;
+}
+;
 function $Event0(i,f) {
 	var li=i,lf=f;
 	return function() {
@@ -60,15 +168,14 @@ function $AsIntf(o,i) {
 	return r;
 }
 ;
+function $As(o,c) {
+	if ((o===null)||$Is(o,c)) return o;
+	throw Exception.Create($New(Exception),"Cannot cast instance of type \""+o.ClassType.$ClassName+"\" to class \""+c.$ClassName+"\"");
+}
 function $ArraySetLenC(a,n,d) {
 	var o=a.length;
 	if (o==n) return;
 	if (o>n) a.length=n; else for (;o<n;o++) a.push(d());
-}
-function $ArraySetLen(a,n,v) {
-	var o=a.length;
-	if (o==n) return;
-	if (o>n) a.length=n; else for (;o<n;o++) a.push(v);
 }
 var THtmlElement = {
    $ClassName:"THtmlElement",$Parent:TObject
@@ -76,9 +183,6 @@ var THtmlElement = {
       TObject.$Init($);
       $.FElement = $.FOwner = null;
       $.FName = "";
-   }
-   ,a$1:function(Self) {
-      return Self.FElement.style;
    }
    ,AfterConstructor:function(Self) {
       /* null */
@@ -122,6 +226,9 @@ var THtmlElement = {
    ,NameChanged:function(Self) {
       Self.FElement.id = Self.FName;
    }
+   ,Resize:function(Self) {
+      /* null */
+   }
    ,SetName:function(Self, Value$2) {
       if (Self.FName!=Value$2) {
          Self.FName = Value$2;
@@ -132,8 +239,86 @@ var THtmlElement = {
    ,AfterConstructor$:function($){return $.ClassType.AfterConstructor($)}
    ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
    ,ElementName$:function($){return $.ElementName($)}
+   ,Resize$:function($){return $.ClassType.Resize($)}
 };
 THtmlElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TCanvasElement = {
+   $ClassName:"TCanvasElement",$Parent:THtmlElement
+   ,$Init:function ($) {
+      THtmlElement.$Init($);
+   }
+   ,ElementName:function(Self) {
+      return "canvas";
+   }
+   ,a$31:function(Self) {
+      return Self.FElement;
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158:THtmlElement.Create$158
+   ,ElementName$:function($){return $.ElementName($)}
+   ,Resize:THtmlElement.Resize
+};
+TCanvasElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TCanvas2DElement = {
+   $ClassName:"TCanvas2DElement",$Parent:TCanvasElement
+   ,$Init:function ($) {
+      TCanvasElement.$Init($);
+      $.FContext = null;
+   }
+   ,Create$158:function(Self, Owner$2) {
+      THtmlElement.Create$158(Self,Owner$2);
+      Self.FContext = TCanvasElement.a$31(Self).getContext("2d");
+      return Self
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
+   ,ElementName:TCanvasElement.ElementName
+   ,Resize:THtmlElement.Resize
+};
+TCanvas2DElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TPlane2D = {
+   $ClassName:"TPlane2D",$Parent:TCanvas2DElement
+   ,$Init:function ($) {
+      TCanvas2DElement.$Init($);
+   }
+   ,Resize:function(Self) {
+      var R = null;
+      R = TCanvasElement.a$31(Self).getBoundingClientRect();
+      TCanvasElement.a$31(Self).width = Math.round(Application.FPixelRatio*R.width);
+      TCanvasElement.a$31(Self).height = Math.round(Application.FPixelRatio*R.height);
+      TPlane2D.Paint(Self);
+   }
+   ,Paint:function(Self) {
+      var Size$2 = 0,
+         R$1 = 0;
+      Size$2 = Math.min(TCanvasElement.a$31(Self).width,TCanvasElement.a$31(Self).height);
+      Self.FContext.strokeStyle = "#CA3631";
+      Self.FContext.lineWidth = 4;
+      R$1 = 0.5*Size$2-Self.FContext.lineWidth;
+      Self.FContext.beginPath();
+      Self.FContext.arc(0.5*Size$2,0.5*Size$2,R$1,0,6.28318530717959,false);
+      Self.FContext.stroke();
+      Self.FContext.beginPath();
+      Self.FContext.moveTo(0.5*Size$2,0.5*Size$2-0.07*R$1);
+      Self.FContext.arc(0.5*Size$2,0.5*Size$2,0.05*R$1,-1.2707963267949,4.41238898038469,false);
+      Self.FContext.closePath();
+      Self.FContext.stroke();
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158:TCanvas2DElement.Create$158
+   ,ElementName:TCanvasElement.ElementName
+   ,Resize$:function($){return $.ClassType.Resize($)}
+};
+TPlane2D.$Intf={
    IHtmlElementOwner:[THtmlElement.GetHtmlElement]
 }
 var TDivElement = {
@@ -151,6 +336,7 @@ var TDivElement = {
    ,AfterConstructor:THtmlElement.AfterConstructor
    ,Create$158:THtmlElement.Create$158
    ,ElementName$:function($){return $.ElementName($)}
+   ,Resize:THtmlElement.Resize
 };
 TDivElement.$Intf={
    IHtmlElementOwner:[THtmlElement.GetHtmlElement]
@@ -159,107 +345,142 @@ var TMainScreen = {
    $ClassName:"TMainScreen",$Parent:TDivElement
    ,$Init:function ($) {
       TDivElement.$Init($);
-      $.FFileSelect = $.FHeader = $.FTextArea = null;
+      $.FHeader = $.FHrtfs = $.FPlane2D = $.FSofaFile = $.FTextArea = null;
+      $.FTracks = [];
    }
-   ,AddText:function(Self, Text$7) {
-      TTextAreaElement.a$2(Self.FTextArea,TTextAreaElement.a$3(Self.FTextArea)+Text$7+"\r");
+   ,AddText:function(Self, Text$8) {
+      TTextAreaElement.a$2(Self.FTextArea,TTextAreaElement.a$3(Self.FTextArea)+Text$8+"\r");
    }
-   ,Create$158:function(Self, Owner$2) {
-      THtmlElement.Create$158(Self,Owner$2);
+   ,Create$158:function(Self, Owner$3) {
+      THtmlElement.Create$158(Self,Owner$3);
       MainScreen = Self;
       TDivElement.a$30(Self).id = "main";
       Self.FHeader = THtmlElement.Create$158$($New(THeader),$AsIntf(Self,"IHtmlElementOwner"));
-      Self.FFileSelect = THtmlElement.Create$158$($New(TFileSelect),$AsIntf(Self,"IHtmlElementOwner"));
-      TInputElement.a$21(Self.FFileSelect.FInputFile).addEventListener("change",function (Event) {
-         var Files = null,
-            Reader = null;
-         Files = Event.target.files;
-         Reader = new FileReader();
-         Reader.onload = function (_implicit_event) {
-            var Result = undefined;
-            console.log("Loading file "+Files[0].name);
-            TMainScreen.LoadSofaFile(Self,Reader.result);
-            Result = null;
-            return Result
-         };
-         Reader.readAsArrayBuffer(Files[0]);
-      },false);
+      Self.FHeader.FFileSelect.OnLoad = function (Buffer) {
+         TMainScreen.LoadSofaFile(Self,Buffer);
+      };
       Self.FTextArea = THtmlElement.Create$158$($New(TTextAreaElement),$AsIntf(Self,"IHtmlElementOwner"));
-      TTextAreaElement.a$4(Self.FTextArea).rows = 24;
+      TTextAreaElement.a$4(Self.FTextArea).rows = 10;
+      TTextAreaElement.a$4(Self.FTextArea).readOnly = true;
+      TTextAreaElement.a$4(Self.FTextArea).placeholder = "please load any SOFA file first";
+      Self.FPlane2D = THtmlElement.Create$158$($New(TPlane2D),$AsIntf(Self,"IHtmlElementOwner"));
+      THtmlElement.Resize$(Self.FPlane2D);
+      window.addEventListener("resize",function () {
+         THtmlElement.Resize$(Self.FPlane2D);
+      },false);
+      TMainScreen.InitializeAudioEngine(Self);
       return Self
    }
-   ,LoadSofaFile:function(Self, Buffer) {
-      var SofaFile = null;
-      SofaFile = TObject.Create($New(TSofaFile));
-      try {
-         TSofaFile.LoadFromBuffer(SofaFile,Buffer);
-         TMainScreen.PrintFileInformation(Self,SofaFile);
-      } finally {
-         TObject.Free(SofaFile);
+   ,InitializeAudioEngine:function(Self) {
+      var a$38 = 0;
+      var TrackName = "",
+         Track = null;
+      AudioContext.sampleRate = 44100;
+      for(a$38=0;a$38<=3;a$38++) {
+         TrackName = CTrackNames[a$38];
+         Track = TTrack.Create$287($New(TTrack),TrackName,function (Sender) {
+            /* null */
+         });
+         Track.FOnEnded = function (Sender$1) {
+            $As(Sender$1,TTrack).FAudioBufferSource.start(AudioContext.currentTime);
+         };
+         Self.FTracks.push(Track);
       }
    }
-   ,PrintFileInformation:function(Self, SofaFile$1) {
+   ,LoadSofaFile:function(Self, Buffer$1) {
+      Self.FSofaFile = TObject.Create($New(TSofaFile));
+      TSofaFile.LoadFromBuffer(Self.FSofaFile,Buffer$1);
+      TMainScreen.PrintFileInformation(Self);
+      TMainScreen.PrepareHrtfs(Self);
+   }
+   ,PrepareHrtfs:function(Self) {
+      Self.FHrtfs = THrtfs.Create$285($New(THrtfs),Self.FSofaFile);
+      TMainScreen.RandomizeHrtfPositions(Self);
+   }
+   ,PrintFileInformation:function(Self) {
       TTextAreaElement.a$2(Self.FTextArea,"");
-      if (SofaFile$1.FTitle!="") {
-         TMainScreen.AddText(Self,"Title: "+SofaFile$1.FTitle);
+      if (Self.FSofaFile.FTitle!="") {
+         TMainScreen.AddText(Self,"Title: "+Self.FSofaFile.FTitle);
       }
-      if (SofaFile$1.FDataType!="") {
-         TMainScreen.AddText(Self,"DataType: "+SofaFile$1.FDataType);
+      if (Self.FSofaFile.FDataType!="") {
+         TMainScreen.AddText(Self,"DataType: "+Self.FSofaFile.FDataType);
       }
-      if (SofaFile$1.FRoomType!="") {
-         TMainScreen.AddText(Self,"RoomType: "+SofaFile$1.FRoomType);
+      if (Self.FSofaFile.FRoomType!="") {
+         TMainScreen.AddText(Self,"RoomType: "+Self.FSofaFile.FRoomType);
       }
-      if (SofaFile$1.FDateCreated!="") {
-         TMainScreen.AddText(Self,"DateCreated: "+SofaFile$1.FDateCreated);
+      if (Self.FSofaFile.FRoomLocation!="") {
+         TMainScreen.AddText(Self,"RoomLocation: "+Self.FSofaFile.FRoomLocation);
       }
-      if (SofaFile$1.FDateModified!="") {
-         TMainScreen.AddText(Self,"DateModified: "+SofaFile$1.FDateModified);
+      if (Self.FSofaFile.FDateCreated!="") {
+         TMainScreen.AddText(Self,"DateCreated: "+Self.FSofaFile.FDateCreated);
       }
-      if (SofaFile$1.FAPIName!="") {
-         TMainScreen.AddText(Self,"APIName: "+SofaFile$1.FAPIName);
+      if (Self.FSofaFile.FDateModified!="") {
+         TMainScreen.AddText(Self,"DateModified: "+Self.FSofaFile.FDateModified);
       }
-      if (SofaFile$1.FAPIVersion!="") {
-         TMainScreen.AddText(Self,"APIVersion: "+SofaFile$1.FAPIVersion);
+      if (Self.FSofaFile.FAPIName!="") {
+         TMainScreen.AddText(Self,"APIName: "+Self.FSofaFile.FAPIName);
       }
-      if (SofaFile$1.FAuthorContact!="") {
-         TMainScreen.AddText(Self,"AuthorContact: "+SofaFile$1.FAuthorContact);
+      if (Self.FSofaFile.FAPIVersion!="") {
+         TMainScreen.AddText(Self,"APIVersion: "+Self.FSofaFile.FAPIVersion);
       }
-      if (SofaFile$1.FOrganization!="") {
-         TMainScreen.AddText(Self,"Organization: "+SofaFile$1.FOrganization);
+      if (Self.FSofaFile.FAuthorContact!="") {
+         TMainScreen.AddText(Self,"AuthorContact: "+Self.FSofaFile.FAuthorContact);
       }
-      if (SofaFile$1.FLicense!="") {
-         TMainScreen.AddText(Self,"License: "+SofaFile$1.FLicense);
+      if (Self.FSofaFile.FOrganization!="") {
+         TMainScreen.AddText(Self,"Organization: "+Self.FSofaFile.FOrganization);
       }
-      if (SofaFile$1.FApplicationName!="") {
-         TMainScreen.AddText(Self,"ApplicationName: "+SofaFile$1.FApplicationName);
+      if (Self.FSofaFile.FLicense!="") {
+         TMainScreen.AddText(Self,"License: "+Self.FSofaFile.FLicense);
       }
-      if (SofaFile$1.FApplicationVersion!="") {
-         TMainScreen.AddText(Self,"ApplicationVersion: "+SofaFile$1.FApplicationVersion);
+      if (Self.FSofaFile.FApplicationName!="") {
+         TMainScreen.AddText(Self,"ApplicationName: "+Self.FSofaFile.FApplicationName);
       }
-      if (SofaFile$1.FComment!="") {
-         TMainScreen.AddText(Self,"Comment: "+SofaFile$1.FComment);
+      if (Self.FSofaFile.FApplicationVersion!="") {
+         TMainScreen.AddText(Self,"ApplicationVersion: "+Self.FSofaFile.FApplicationVersion);
       }
-      if (SofaFile$1.FHistory!="") {
-         TMainScreen.AddText(Self,"History: "+SofaFile$1.FHistory);
+      if (Self.FSofaFile.FComment!="") {
+         TMainScreen.AddText(Self,"Comment: "+Self.FSofaFile.FComment);
       }
-      if (SofaFile$1.FReferences!="") {
-         TMainScreen.AddText(Self,"References: "+SofaFile$1.FReferences);
+      if (Self.FSofaFile.FHistory!="") {
+         TMainScreen.AddText(Self,"History: "+Self.FSofaFile.FHistory);
       }
-      if (SofaFile$1.FOrigin!="") {
-         TMainScreen.AddText(Self,"Origin: "+SofaFile$1.FOrigin);
+      if (Self.FSofaFile.FReferences!="") {
+         TMainScreen.AddText(Self,"References: "+Self.FSofaFile.FReferences);
+      }
+      if (Self.FSofaFile.FOrigin!="") {
+         TMainScreen.AddText(Self,"Origin: "+Self.FSofaFile.FOrigin);
       }
       TMainScreen.AddText(Self,"");
-      TMainScreen.AddText(Self,"Number of Measurements: "+SofaFile$1.FNumberOfMeasurements.toString());
-      TMainScreen.AddText(Self,"Number of Receivers: "+SofaFile$1.FNumberOfReceivers.toString());
-      TMainScreen.AddText(Self,"Number of Emitters: "+SofaFile$1.FNumberOfEmitters.toString());
-      TMainScreen.AddText(Self,"Number of DataSamples: "+SofaFile$1.FNumberOfDataSamples.toString());
-      TMainScreen.AddText(Self,"SampleRate: "+TSofaFile.GetSampleRate(SofaFile$1,0).toString());
-      TMainScreen.AddText(Self,"Delay: "+TSofaFile.GetDelay(SofaFile$1,0).toString());
+      TMainScreen.AddText(Self,"Number of Measurements: "+Self.FSofaFile.FNumberOfMeasurements.toString());
+      TMainScreen.AddText(Self,"Number of Receivers: "+Self.FSofaFile.FNumberOfReceivers.toString());
+      TMainScreen.AddText(Self,"Number of Emitters: "+Self.FSofaFile.FNumberOfEmitters.toString());
+      TMainScreen.AddText(Self,"Number of DataSamples: "+Self.FSofaFile.FNumberOfDataSamples.toString());
+      TMainScreen.AddText(Self,"SampleRate: "+TSofaFile.GetSampleRate(Self.FSofaFile,0).toString());
+      TMainScreen.AddText(Self,"Delay: "+TSofaFile.GetDelay(Self.FSofaFile,0).toString());
+   }
+   ,RandomizeHrtfPositions:function(Self) {
+      var Positions = [],
+         a$39 = 0;
+      var Track$1 = null,
+         Index = 0,
+         CurrentPosition = {X$2:0,Y$2:0,Z:0};
+      var a$40 = [];
+      a$40 = Self.FTracks;
+      var $temp1;
+      for(a$39=0,$temp1=a$40.length;a$39<$temp1;a$39++) {
+         Track$1 = a$40[a$39];
+         Index = RandomInt(THrtfs.a$37(Self.FHrtfs));
+         Copy$TVector3(THrtfs.GetMeasurement(Self.FHrtfs,Index).FPosition$1,CurrentPosition);
+         Positions.push(Clone$TVector3(CurrentPosition));
+         TTrack.FromHrtf(Track$1,Self.FHrtfs,Index);
+         Track$1.FAudioBufferSource.start(0);
+      }
    }
    ,Destroy:THtmlElement.Destroy
    ,AfterConstructor:THtmlElement.AfterConstructor
    ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
    ,ElementName:TDivElement.ElementName
+   ,Resize:THtmlElement.Resize
 };
 TMainScreen.$Intf={
    IHtmlElementOwner:[THtmlElement.GetHtmlElement]
@@ -268,18 +489,18 @@ var THeader = {
    $ClassName:"THeader",$Parent:TDivElement
    ,$Init:function ($) {
       TDivElement.$Init($);
+      $.FHeading = $.FFileSelect = null;
    }
    ,AfterConstructor:function(Self) {
-      var Heading = null;
-      Heading = THtmlElement.Create$158$($New(TH1Element),$AsIntf(Self,"IHtmlElementOwner"));
-      TCustomHeadingElement.a$27(Heading,"WebSofa Demo");
-      THtmlElement.a$1(Heading).color = "#FFF";
-      THtmlElement.a$1(Heading).textShadow = "1px 1px 4px rgba(0,0,0,0.75)";
+      Self.FHeading = THtmlElement.Create$158$($New(TH1Element),$AsIntf(Self,"IHtmlElementOwner"));
+      TCustomHeadingElement.a$27(Self.FHeading,"WebSofa Demo");
+      Self.FFileSelect = THtmlElement.Create$158$($New(TFileSelect),$AsIntf(Self,"IHtmlElementOwner"));
    }
    ,Destroy:THtmlElement.Destroy
    ,AfterConstructor$:function($){return $.ClassType.AfterConstructor($)}
    ,Create$158:THtmlElement.Create$158
    ,ElementName:TDivElement.ElementName
+   ,Resize:THtmlElement.Resize
 };
 THeader.$Intf={
    IHtmlElementOwner:[THtmlElement.GetHtmlElement]
@@ -288,169 +509,37 @@ var TFileSelect = {
    $ClassName:"TFileSelect",$Parent:TDivElement
    ,$Init:function ($) {
       TDivElement.$Init($);
-      $.FInputFile = null;
+      $.FInputFile = $.OnLoad = null;
    }
    ,AfterConstructor:function(Self) {
       Self.FInputFile = THtmlElement.Create$158$($New(TInputFileElement),$AsIntf(Self,"IHtmlElementOwner"));
       TInputElement.a$21(Self.FInputFile).accept = ".sofa";
+      TInputElement.a$21(Self.FInputFile).addEventListener("change",function (Event) {
+         var Files = null,
+            Reader = null;
+         Files = Event.target.files;
+         Reader = new FileReader();
+         Reader.onload = function (_implicit_event) {
+            var Result = undefined;
+            if (Self.OnLoad) {
+               Self.OnLoad(Reader.result);
+            }
+            Result = null;
+            return Result
+         };
+         Reader.readAsArrayBuffer(Files[0]);
+      },false);
    }
    ,Destroy:THtmlElement.Destroy
    ,AfterConstructor$:function($){return $.ClassType.AfterConstructor($)}
    ,Create$158:THtmlElement.Create$158
    ,ElementName:TDivElement.ElementName
+   ,Resize:THtmlElement.Resize
 };
 TFileSelect.$Intf={
    IHtmlElementOwner:[THtmlElement.GetHtmlElement]
 }
-var TTextAreaElement = {
-   $ClassName:"TTextAreaElement",$Parent:THtmlElement
-   ,$Init:function ($) {
-      THtmlElement.$Init($);
-   }
-   ,a$4:function(Self) {
-      return Self.FElement;
-   }
-   ,a$3:function(Self) {
-      return TTextAreaElement.a$4(Self).value;
-   }
-   ,a$2:function(Self, Value$3) {
-      TTextAreaElement.a$4(Self).value = Value$3;
-   }
-   ,Create$158:function(Self, Owner$3) {
-      THtmlElement.Create$158(Self,Owner$3);
-      return Self
-   }
-   ,ElementName:function(Self) {
-      return "textarea";
-   }
-   ,Destroy:THtmlElement.Destroy
-   ,AfterConstructor:THtmlElement.AfterConstructor
-   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
-   ,ElementName$:function($){return $.ElementName($)}
-};
-TTextAreaElement.$Intf={
-   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
-}
-var TInputElement = {
-   $ClassName:"TInputElement",$Parent:THtmlElement
-   ,$Init:function ($) {
-      THtmlElement.$Init($);
-   }
-   ,ElementName:function(Self) {
-      return "input";
-   }
-   ,a$21:function(Self) {
-      return Self.FElement;
-   }
-   ,Destroy:THtmlElement.Destroy
-   ,AfterConstructor:THtmlElement.AfterConstructor
-   ,Create$158:THtmlElement.Create$158
-   ,ElementName$:function($){return $.ElementName($)}
-};
-TInputElement.$Intf={
-   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
-}
-var TInputFileElement = {
-   $ClassName:"TInputFileElement",$Parent:TInputElement
-   ,$Init:function ($) {
-      TInputElement.$Init($);
-   }
-   ,Create$158:function(Self, Owner$4) {
-      THtmlElement.Create$158(Self,Owner$4);
-      TInputElement.a$21(Self).type = "file";
-      return Self
-   }
-   ,Destroy:THtmlElement.Destroy
-   ,AfterConstructor:THtmlElement.AfterConstructor
-   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
-   ,ElementName:TInputElement.ElementName
-};
-TInputFileElement.$Intf={
-   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
-}
-var TCustomHeadingElement = {
-   $ClassName:"TCustomHeadingElement",$Parent:THtmlElement
-   ,$Init:function ($) {
-      THtmlElement.$Init($);
-      $.FTextNode$4 = null;
-   }
-   ,a$28:function(Self) {
-      return Self.FTextNode$4.data;
-   }
-   ,a$27:function(Self, Value$4) {
-      Self.FTextNode$4.data = Value$4;
-   }
-   ,Create$158:function(Self, Owner$5) {
-      THtmlElement.Create$158(Self,Owner$5);
-      Self.FTextNode$4 = document.createTextNode("");
-      Self.FElement.appendChild(Self.FTextNode$4);
-      return Self
-   }
-   ,Destroy:THtmlElement.Destroy
-   ,AfterConstructor:THtmlElement.AfterConstructor
-   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
-   ,ElementName:THtmlElement.ElementName
-};
-TCustomHeadingElement.$Intf={
-   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
-}
-var TH1Element = {
-   $ClassName:"TH1Element",$Parent:TCustomHeadingElement
-   ,$Init:function ($) {
-      TCustomHeadingElement.$Init($);
-   }
-   ,ElementName:function(Self) {
-      return "H1";
-   }
-   ,Destroy:THtmlElement.Destroy
-   ,AfterConstructor:THtmlElement.AfterConstructor
-   ,Create$158:TCustomHeadingElement.Create$158
-   ,ElementName$:function($){return $.ElementName($)}
-};
-TH1Element.$Intf={
-   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
-}
-var TApplication = {
-   $ClassName:"TApplication",$Parent:TObject
-   ,$Init:function ($) {
-      TObject.$Init($);
-      $.FElements = [];
-   }
-   ,Create$175:function(Self) {
-      document.addEventListener("deviceready",$Event0(Self,TApplication.DeviceReady),false);
-      return Self
-   }
-   ,CreateElement:function(Self, HtmlElementClass) {
-      var Result = null;
-      Result = THtmlElement.Create$158$($NewDyn(HtmlElementClass,""),$AsIntf(Self,"IHtmlElementOwner"));
-      Self.FElements.push(Result);
-      return Result
-   }
-   ,Destroy:function(Self) {
-      TObject.Destroy(Self);
-   }
-   ,DeviceReady:function(Self) {
-      document.addEventListener("pause",$Event0(Self,TApplication.Pause),false);
-      document.addEventListener("resume",$Event0(Self,TApplication.Resume),false);
-      CordovaAvailable = true;
-   }
-   ,GetHtmlElement$1:function(Self) {
-      return document.body;
-   }
-   ,Pause:function(Self) {
-      /* null */
-   }
-   ,Resume:function(Self) {
-      /* null */
-   }
-   ,Run:function(Self) {
-      /* null */
-   }
-   ,Destroy$:function($){return $.ClassType.Destroy($)}
-};
-TApplication.$Intf={
-   IHtmlElementOwner:[TApplication.GetHtmlElement$1]
-}
+var CTrackNames = ["Vocal","Piano","Bass","Drums"];
 var TStream = {
    $ClassName:"TStream",$Parent:TObject
    ,$Init:function ($) {
@@ -458,15 +547,15 @@ var TStream = {
       $.FDataView = null;
       $.FPosition = 0;
    }
-   ,a$35:function(Self) {
+   ,a$36:function(Self) {
       return Self.FDataView.buffer.byteLength;
    }
    ,Clear$1:function(Self) {
       Self.FPosition = 0;
    }
-   ,Create$255:function(Self, Buffer$1) {
+   ,Create$271:function(Self, Buffer$2) {
       Self.FPosition = 0;
-      Self.FDataView = new DataView(Buffer$1);
+      Self.FDataView = new DataView(Buffer$2);
       return Self
    }
    ,ReadBufferExcept:function(Self, Count) {
@@ -543,9 +632,9 @@ var TStream = {
       (Self.FPosition+= Count$3);
       return Result
    }
-   ,Seek:function(Self, Position$1, IsRelative) {
+   ,Seek:function(Self, Position$2, IsRelative) {
       var Result = 0;
-      Self.FPosition = Position$1+((IsRelative)?Self.FPosition:0);
+      Self.FPosition = Position$2+((IsRelative)?Self.FPosition:0);
       if (Self.FPosition>Self.FDataView.byteLength) {
          Self.FPosition = Self.FDataView.byteLength;
       }
@@ -555,36 +644,36 @@ var TStream = {
       Result = Self.FPosition;
       return Result
    }
-   ,WriteBuffer:function(Self, Buffer$2) {
+   ,WriteBuffer:function(Self, Buffer$3) {
       var OldBuffer = null,
          NewBuffer = null;
       OldBuffer = Self.FDataView.buffer;
-      NewBuffer = new Uint8Array(OldBuffer.byteLength+Buffer$2.byteLength);
+      NewBuffer = new Uint8Array(OldBuffer.byteLength+Buffer$3.byteLength);
       NewBuffer.set(OldBuffer,0);
-      NewBuffer.set(Buffer$2,OldBuffer.byteLength);
+      NewBuffer.set(Buffer$3,OldBuffer.byteLength);
       Self.FDataView = new DataView(NewBuffer.buffer);
       Self.FPosition = NewBuffer.byteLength;
    }
-   ,WriteInteger:function(Self, Count$4, Value$5) {
+   ,WriteInteger:function(Self, Count$4, Value$3) {
       switch (Count$4) {
          case 1 :
-            Self.FDataView.setUint8(Self.FPosition,Value$5);
+            Self.FDataView.setUint8(Self.FPosition,Value$3);
             break;
          case 2 :
-            Self.FDataView.setUint16(Self.FPosition,Value$5);
+            Self.FDataView.setUint16(Self.FPosition,Value$3);
             break;
          case 4 :
-            Self.FDataView.setUint32(Self.FPosition,Value$5);
+            Self.FDataView.setUint32(Self.FPosition,Value$3);
             break;
          default :
             throw Exception.Create($New(Exception),"Invalid count");
       }
       (Self.FPosition+= Count$4);
    }
-   ,WriteString:function(Self, Value$6) {
+   ,WriteString:function(Self, Value$4) {
       var Encoder = null;
       Encoder = new TextEncoder();
-      TStream.WriteBuffer(Self,Encoder.encode(Value$6));
+      TStream.WriteBuffer(Self,Encoder.encode(Value$4));
    }
    ,Destroy:TObject.Destroy
 };
@@ -624,7 +713,7 @@ var THdfSuperBlock = {
       if (Self.FBaseAddress) {
          throw Exception.Create($New(Exception),"The base address should be zero");
       }
-      if (Self.FEndOfFileAddress!=TStream.a$35(Stream)) {
+      if (Self.FEndOfFileAddress!=TStream.a$36(Stream)) {
          throw Exception.Create($New(Exception),"Size mismatch");
       }
       Self.FChecksum = TStream.ReadIntegerExcept(Stream,4);
@@ -641,7 +730,7 @@ var THdfDataObjectMessage = {
       $.FDataObject = $.FSuperBlock = null;
       $.FVersion$1 = 0;
    }
-   ,Create$256:function(Self, SuperBlock$3, DataObject$3) {
+   ,Create$272:function(Self, SuperBlock$3, DataObject$3) {
       Self.FSuperBlock = SuperBlock$3;
       Self.FDataObject = DataObject$3;
       return Self
@@ -730,7 +819,7 @@ var THdfMessageFilterPipeline = {
       $.FFilters = 0;
    }
    ,LoadFromStream$1:function(Self, Stream$5) {
-      var Index = 0;
+      var Index$1 = 0;
       var FilterIdentificationValue = 0;
       var Flags$1 = 0;
       var NumberClientDataValues = 0;
@@ -744,16 +833,16 @@ var THdfMessageFilterPipeline = {
       if (Self.FFilters>32) {
          throw Exception.Create($New(Exception),"filter pipeline message has too many filters");
       }
-      var $temp1;
-      for(Index=0,$temp1=Self.FFilters;Index<$temp1;Index++) {
+      var $temp2;
+      for(Index$1=0,$temp2=Self.FFilters;Index$1<$temp2;Index$1++) {
          FilterIdentificationValue = TStream.ReadIntegerExcept(Stream$5,2);
          if (([1,2].indexOf(~FilterIdentificationValue)>=0)) {
             throw Exception.Create($New(Exception),"Unsupported filter");
          }
          Flags$1 = TStream.ReadIntegerExcept(Stream$5,2);
          NumberClientDataValues = TStream.ReadIntegerExcept(Stream$5,2);
-         var $temp2;
-         for(ValueIndex=0,$temp2=NumberClientDataValues;ValueIndex<$temp2;ValueIndex++) {
+         var $temp3;
+         for(ValueIndex=0,$temp3=NumberClientDataValues;ValueIndex<$temp3;ValueIndex++) {
             ClientData = TStream.ReadIntegerExcept(Stream$5,4);
          }
       }
@@ -782,37 +871,37 @@ var THdfMessageDataType = {
       Self.FSize = TStream.ReadIntegerExcept(Stream$6,4);
       switch (Self.FDataClass) {
          case 0 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeFixedPoint),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeFixedPoint),Self);
             break;
          case 1 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeFloatingPoint),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeFloatingPoint),Self);
             break;
          case 2 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeTime),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeTime),Self);
             break;
          case 3 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeString),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeString),Self);
             break;
          case 4 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeBitfield),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeBitfield),Self);
             break;
          case 5 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeOpaque),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeOpaque),Self);
             break;
          case 6 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeCompound),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeCompound),Self);
             break;
          case 7 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeReference),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeReference),Self);
             break;
          case 8 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeEnumerated),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeEnumerated),Self);
             break;
          case 9 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeVariableLength),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeVariableLength),Self);
             break;
          case 10 :
-            Self.FDataType$1 = THdfBaseDataType.Create$261$($New(THdfDataTypeArray),Self);
+            Self.FDataType$1 = THdfBaseDataType.Create$277$($New(THdfDataTypeArray),Self);
             break;
          default :
             throw Exception.Create($New(Exception),("Unknown datatype ("+Self.FDataClass.toString()+")"));
@@ -833,8 +922,8 @@ var THdfMessageDataSpace = {
       $.FDimensionSize = [];
    }
    ,LoadFromStream$1:function(Self, Stream$7) {
-      var Index$1 = 0;
-      var Size$2 = 0,
+      var Index$2 = 0;
+      var Size$3 = 0,
          MaxSize = 0;
       THdfDataObjectMessage.LoadFromStream$1(Self,Stream$7);
       if (!((Self.FVersion$1==1||Self.FVersion$1==2))) {
@@ -847,14 +936,14 @@ var THdfMessageDataSpace = {
          throw Exception.Create($New(Exception),"Unsupported version of dataspace message");
       }
       Self.FType = TStream.ReadIntegerExcept(Stream$7,1);
-      var $temp3;
-      for(Index$1=0,$temp3=Self.FDimensionality;Index$1<$temp3;Index$1++) {
-         Size$2 = TStream.ReadIntegerExcept(Stream$7,Self.FSuperBlock.FLengthsSize);
-         Self.FDimensionSize.push(Size$2);
+      var $temp4;
+      for(Index$2=0,$temp4=Self.FDimensionality;Index$2<$temp4;Index$2++) {
+         Size$3 = TStream.ReadIntegerExcept(Stream$7,Self.FSuperBlock.FLengthsSize);
+         Self.FDimensionSize.push(Size$3);
       }
       if (Self.FFlags$2&1) {
-         var $temp4;
-         for(Index$1=0,$temp4=Self.FDimensionality;Index$1<$temp4;Index$1++) {
+         var $temp5;
+         for(Index$2=0,$temp5=Self.FDimensionality;Index$2<$temp5;Index$2++) {
             MaxSize = TStream.ReadIntegerExcept(Stream$7,Self.FSuperBlock.FLengthsSize);
             Self.FDimensionMaxSize.push(MaxSize);
          }
@@ -869,9 +958,10 @@ var THdfMessageDataLayout = {
       THdfDataObjectMessage.$Init($);
       $.FLayoutClass = $.FDataAddress = $.FDataSize = $.FDimensionality$1 = 0;
    }
-   ,ReadTree:function(Self, Stream$8, Size$3) {
+   ,ReadTree:function(Self, Stream$8, Size$4) {
       var Key = 0;
-      var Signature$1 = "",
+      var Start = [],
+         Signature$1 = "",
          NodeType = 0,
          NodeLevel = 0,
          EntriesUsed = 0,
@@ -884,7 +974,6 @@ var THdfMessageDataLayout = {
          ElementIndex = 0;
       var ChunkSize = 0,
          FilterMask = 0,
-         Start = [],
          DimensionIndex$1 = 0;
       var StartPos = 0,
          BreakCondition = 0,
@@ -928,14 +1017,14 @@ var THdfMessageDataLayout = {
       AddressLeftSibling = TStream.ReadIntegerExcept(Stream$8,Self.FSuperBlock.FOffsetSize);
       AddressRightSibling = TStream.ReadIntegerExcept(Stream$8,Self.FSuperBlock.FOffsetSize);
       Elements = 1;
-      var $temp5;
-      for(DimensionIndex=0,$temp5=Self.FDataObject.FDataSpace.FDimensionality;DimensionIndex<$temp5;DimensionIndex++) {
+      var $temp6;
+      for(DimensionIndex=0,$temp6=Self.FDataObject.FDataSpace.FDimensionality;DimensionIndex<$temp6;DimensionIndex++) {
          Elements*=THdfDataObject.GetDataLayoutChunk(Self.FDataObject,DimensionIndex);
       }
       ElementSize = THdfDataObject.GetDataLayoutChunk(Self.FDataObject,Self.FDataObject.FDataSpace.FDimensionality);
-      Output = new Uint8Array(Size$3);
-      var $temp6;
-      for(ElementIndex=0,$temp6=(EntriesUsed*2);ElementIndex<$temp6;ElementIndex++) {
+      Output = new Uint8Array(Size$4);
+      var $temp7;
+      for(ElementIndex=0,$temp7=(EntriesUsed*2);ElementIndex<$temp7;ElementIndex++) {
          if (!NodeType) {
             Key = TStream.ReadIntegerExcept(Stream$8,Self.FSuperBlock.FLengthsSize);
          } else {
@@ -944,8 +1033,9 @@ var THdfMessageDataLayout = {
             if (FilterMask) {
                throw Exception.Create($New(Exception),"All filters must be enabled");
             }
-            var $temp7;
-            for(DimensionIndex$1=0,$temp7=Self.FDataObject.FDataSpace.FDimensionality;DimensionIndex$1<$temp7;DimensionIndex$1++) {
+            Start.length=0;
+            var $temp8;
+            for(DimensionIndex$1=0,$temp8=Self.FDataObject.FDataSpace.FDimensionality;DimensionIndex$1<$temp8;DimensionIndex$1++) {
                StartPos = TStream.ReadIntegerExcept(Stream$8,8);
                Start.push(StartPos);
             }
@@ -963,8 +1053,8 @@ var THdfMessageDataLayout = {
             switch (Self.FDataObject.FDataSpace.FDimensionality) {
                case 1 :
                   sx = Self.FDataObject.FDataSpace.FDimensionSize[0];
-                  var $temp8;
-                  for(ByteIndex=0,$temp8=(Elements*ElementSize);ByteIndex<$temp8;ByteIndex++) {
+                  var $temp9;
+                  for(ByteIndex=0,$temp9=(Elements*ElementSize);ByteIndex<$temp9;ByteIndex++) {
                      b$1 = $Div(ByteIndex,Elements);
                      x$14 = ByteIndex%Elements+Start[0];
                      if (x$14<sx) {
@@ -976,8 +1066,8 @@ var THdfMessageDataLayout = {
                   sx$1 = Self.FDataObject.FDataSpace.FDimensionSize[0];
                   sy = Self.FDataObject.FDataSpace.FDimensionSize[1];
                   dy$1 = THdfDataObject.GetDataLayoutChunk(Self.FDataObject,1);
-                  var $temp9;
-                  for(ByteIndex$1=0,$temp9=(Elements*ElementSize);ByteIndex$1<$temp9;ByteIndex$1++) {
+                  var $temp10;
+                  for(ByteIndex$1=0,$temp10=(Elements*ElementSize);ByteIndex$1<$temp10;ByteIndex$1++) {
                      b$2 = $Div(ByteIndex$1,Elements);
                      x$15 = ByteIndex$1%Elements;
                      y$14 = x$15%dy$1+Start[1];
@@ -993,8 +1083,8 @@ var THdfMessageDataLayout = {
                   sz = Self.FDataObject.FDataSpace.FDimensionSize[2];
                   dy$2 = THdfDataObject.GetDataLayoutChunk(Self.FDataObject,1);
                   dz = THdfDataObject.GetDataLayoutChunk(Self.FDataObject,2);
-                  var $temp10;
-                  for(ByteIndex$2=0,$temp10=(Elements*ElementSize);ByteIndex$2<$temp10;ByteIndex$2++) {
+                  var $temp11;
+                  for(ByteIndex$2=0,$temp11=(Elements*ElementSize);ByteIndex$2<$temp11;ByteIndex$2++) {
                      b$3 = $Div(ByteIndex$2,Elements);
                      x$16 = ByteIndex$2%Elements;
                      z$2 = x$16%dz+Start[2];
@@ -1013,9 +1103,9 @@ var THdfMessageDataLayout = {
       CheckSum = TStream.ReadIntegerExcept(Stream$8,4);
    }
    ,LoadFromStream$1:function(Self, Stream$9) {
-      var Index$2 = 0;
+      var Index$3 = 0;
       var StreamPos$2 = 0;
-      var Size$4 = 0;
+      var Size$5 = 0;
       var DataLayoutChunk$1 = 0;
       THdfDataObjectMessage.LoadFromStream$1(Self,Stream$9);
       if (Self.FVersion$1!=3) {
@@ -1040,20 +1130,20 @@ var THdfMessageDataLayout = {
          case 2 :
             Self.FDimensionality$1 = TStream.ReadIntegerExcept(Stream$9,1);
             Self.FDataAddress = TStream.ReadIntegerExcept(Stream$9,Self.FSuperBlock.FOffsetSize);
-            var $temp11;
-            for(Index$2=0,$temp11=Self.FDimensionality$1;Index$2<$temp11;Index$2++) {
+            var $temp12;
+            for(Index$3=0,$temp12=Self.FDimensionality$1;Index$3<$temp12;Index$3++) {
                DataLayoutChunk$1 = TStream.ReadIntegerExcept(Stream$9,4);
                Self.FDataObject.FDataLayoutChunk.push(DataLayoutChunk$1);
             }
-            Size$4 = Self.FDataObject.FDataLayoutChunk[Self.FDimensionality$1-1];
-            var $temp12;
-            for(Index$2=0,$temp12=Self.FDataObject.FDataSpace.FDimensionality;Index$2<$temp12;Index$2++) {
-               Size$4*=Self.FDataObject.FDataSpace.FDimensionSize[Index$2];
+            Size$5 = Self.FDataObject.FDataLayoutChunk[Self.FDimensionality$1-1];
+            var $temp13;
+            for(Index$3=0,$temp13=Self.FDataObject.FDataSpace.FDimensionality;Index$3<$temp13;Index$3++) {
+               Size$5*=Self.FDataObject.FDataSpace.FDimensionSize[Index$3];
             }
             if (Self.FDataAddress>0&&Self.FDataAddress<Self.FSuperBlock.FEndOfFileAddress) {
                StreamPos$2 = Stream$9.FPosition;
                Stream$9.FPosition = Self.FDataAddress;
-               THdfMessageDataLayout.ReadTree(Self,Stream$9,Size$4);
+               THdfMessageDataLayout.ReadTree(Self,Stream$9,Size$5);
                Stream$9.FPosition = StreamPos$2;
             }
             break;
@@ -1126,11 +1216,11 @@ var THdfMessageAttribute = {
       Self.FDataspaceSize = TStream.ReadIntegerExcept(Stream$12,2);
       Self.FEncoding = TStream.ReadIntegerExcept(Stream$12,1);
       Self.FName$1 = TStream.ReadStringExcept(Stream$12,Self.FNameSize);
-      Self.FDatatypeMessage = THdfDataObjectMessage.Create$256($New(THdfMessageDataType),Self.FSuperBlock,Self.FDataObject);
+      Self.FDatatypeMessage = THdfDataObjectMessage.Create$272($New(THdfMessageDataType),Self.FSuperBlock,Self.FDataObject);
       THdfDataObjectMessage.LoadFromStream$1$(Self.FDatatypeMessage,Stream$12);
-      Self.FDataspaceMessage = THdfDataObjectMessage.Create$256($New(THdfMessageDataSpace),Self.FSuperBlock,Self.FDataObject);
+      Self.FDataspaceMessage = THdfDataObjectMessage.Create$272($New(THdfMessageDataSpace),Self.FSuperBlock,Self.FDataObject);
       THdfDataObjectMessage.LoadFromStream$1$(Self.FDataspaceMessage,Stream$12);
-      Attribute = THdfAttribute.Create$267($New(THdfAttribute),Self.FName$1);
+      Attribute = THdfAttribute.Create$283($New(THdfAttribute),Self.FName$1);
       THdfDataObject.AddAttribute(Self.FDataObject,Attribute);
       if (!Self.FDataspaceMessage.FDimensionality) {
          THdfMessageAttribute.ReadData(Self,Stream$12,Attribute);
@@ -1141,7 +1231,7 @@ var THdfMessageAttribute = {
    ,ReadData:function(Self, Stream$13, Attribute$1) {
       var Name$6 = {};
       Name$6.v = "";
-      var Value$7 = 0;
+      var Value$5 = 0;
       var Dimension$1 = 0;
       var EndAddress = 0;
       switch (Self.FDatatypeMessage.FDataClass) {
@@ -1154,24 +1244,24 @@ var THdfMessageAttribute = {
             TStream.Seek(Stream$13,Self.FDatatypeMessage.FSize,true);
             break;
          case 7 :
-            Value$7 = TStream.ReadIntegerExcept(Stream$13,4);
-            THdfAttribute.SetValueAsInteger(Attribute$1,Value$7);
+            Value$5 = TStream.ReadIntegerExcept(Stream$13,4);
+            THdfAttribute.SetValueAsInteger(Attribute$1,Value$5);
             break;
          case 9 :
             Dimension$1 = TStream.ReadIntegerExcept(Stream$13,4);
             EndAddress = TStream.ReadIntegerExcept(Stream$13,4);
-            Value$7 = TStream.ReadIntegerExcept(Stream$13,4);
-            Value$7 = TStream.ReadIntegerExcept(Stream$13,4);
+            Value$5 = TStream.ReadIntegerExcept(Stream$13,4);
+            Value$5 = TStream.ReadIntegerExcept(Stream$13,4);
             break;
          default :
             throw Exception.Create($New(Exception),"Error: unknown data class");
       }
    }
    ,ReadDataDimension:function(Self, Stream$14, Attribute$2, Dimension$2) {
-      var Index$3 = 0;
+      var Index$4 = 0;
       if (Self.FDataspaceMessage.FDimensionSize.length>0) {
-         var $temp13;
-         for(Index$3=0,$temp13=Self.FDataspaceMessage.FDimensionSize[0];Index$3<$temp13;Index$3++) {
+         var $temp14;
+         for(Index$4=0,$temp14=Self.FDataspaceMessage.FDimensionSize[0];Index$4<$temp14;Index$4++) {
             if (1<Self.FDataspaceMessage.FDimensionality) {
                THdfMessageAttribute.ReadDataDimension(Self,Stream$14,Attribute$2,Dimension$2+1);
             } else {
@@ -1191,7 +1281,7 @@ var THdfCustomBlock = {
       $.FDataObject$1 = $.FFractalHeap = $.FSuperBlock$1 = null;
       $.FSignature = "";
    }
-   ,Create$257:function(Self, SuperBlock$4, FractalHeap, DataObject$4) {
+   ,Create$273:function(Self, SuperBlock$4, FractalHeap, DataObject$4) {
       Self.FSuperBlock$1 = SuperBlock$4;
       Self.FFractalHeap = FractalHeap;
       Self.FDataObject$1 = DataObject$4;
@@ -1211,7 +1301,7 @@ var THdfCustomBlock = {
       Self.FBlockOffset = TStream.ReadIntegerExcept(Stream$15,$Div(Self.FFractalHeap.FMaximumHeapSize+7,8));
    }
    ,Destroy:TObject.Destroy
-   ,Create$257$:function($){return $.ClassType.Create$257.apply($.ClassType, arguments)}
+   ,Create$273$:function($){return $.ClassType.Create$273.apply($.ClassType, arguments)}
    ,GetSignature$:function($){return $.GetSignature($)}
    ,LoadFromStream$12$:function($){return $.ClassType.LoadFromStream$12.apply($.ClassType, arguments)}
 };
@@ -1224,8 +1314,8 @@ var THdfIndirectBlock = {
    ,GetSignature:function(Self) {
       return "FHIB";
    }
-   ,Create$257:function(Self, SuperBlock$5, FractalHeap$1, DataObject$5) {
-      THdfCustomBlock.Create$257(Self,SuperBlock$5,FractalHeap$1,DataObject$5);
+   ,Create$273:function(Self, SuperBlock$5, FractalHeap$1, DataObject$5) {
+      THdfCustomBlock.Create$273(Self,SuperBlock$5,FractalHeap$1,DataObject$5);
       Self.FInitialBlockSize = FractalHeap$1.FStartingBlockSize;
       return Self
    }
@@ -1260,7 +1350,7 @@ var THdfIndirectBlock = {
          if (ChildBlockAddress>0&&ChildBlockAddress<Self.FSuperBlock$1.FEndOfFileAddress) {
             StreamPosition = Stream$16.FPosition;
             Stream$16.FPosition = ChildBlockAddress;
-            Block = THdfCustomBlock.Create$257$($New(THdfDirectBlock),Self.FSuperBlock$1,Self.FFractalHeap,Self.FDataObject$1);
+            Block = THdfCustomBlock.Create$273$($New(THdfDirectBlock),Self.FSuperBlock$1,Self.FFractalHeap,Self.FDataObject$1);
             THdfCustomBlock.LoadFromStream$12$(Block,Stream$16);
             Stream$16.FPosition = StreamPosition;
          }
@@ -1272,7 +1362,7 @@ var THdfIndirectBlock = {
          if (ChildBlockAddress>0&&ChildBlockAddress<Self.FSuperBlock$1.FEndOfFileAddress) {
             StreamPosition = Stream$16.FPosition;
             Stream$16.FPosition = ChildBlockAddress;
-            Block = THdfCustomBlock.Create$257$($New(THdfIndirectBlock),Self.FSuperBlock$1,Self.FFractalHeap,Self.FDataObject$1);
+            Block = THdfCustomBlock.Create$273$($New(THdfIndirectBlock),Self.FSuperBlock$1,Self.FFractalHeap,Self.FDataObject$1);
             THdfCustomBlock.LoadFromStream$12$(Block,Stream$16);
             Stream$16.FPosition = StreamPosition;
          }
@@ -1280,7 +1370,7 @@ var THdfIndirectBlock = {
       }
    }
    ,Destroy:TObject.Destroy
-   ,Create$257$:function($){return $.ClassType.Create$257.apply($.ClassType, arguments)}
+   ,Create$273$:function($){return $.ClassType.Create$273.apply($.ClassType, arguments)}
    ,GetSignature$:function($){return $.GetSignature($)}
    ,LoadFromStream$12$:function($){return $.ClassType.LoadFromStream$12.apply($.ClassType, arguments)}
 };
@@ -1292,7 +1382,7 @@ var THdfFractalHeap = {
       $.FDataObject$2 = $.FSuperBlock$2 = null;
       $.FSignature$1 = "";
    }
-   ,Create$259:function(Self, SuperBlock$6, DataObject$6) {
+   ,Create$275:function(Self, SuperBlock$6, DataObject$6) {
       Self.FSuperBlock$2 = SuperBlock$6;
       Self.FDataObject$2 = DataObject$6;
       return Self
@@ -1343,9 +1433,9 @@ var THdfFractalHeap = {
       if (Self.FAddressOfRootBlock>0&&Self.FAddressOfRootBlock<Self.FSuperBlock$2.FEndOfFileAddress) {
          Stream$17.FPosition = Self.FAddressOfRootBlock;
          if (Self.FCurrentNumberOfRows) {
-            Block$1 = THdfCustomBlock.Create$257$($New(THdfIndirectBlock),Self.FSuperBlock$2,Self,Self.FDataObject$2);
+            Block$1 = THdfCustomBlock.Create$273$($New(THdfIndirectBlock),Self.FSuperBlock$2,Self,Self.FDataObject$2);
          } else {
-            Block$1 = THdfCustomBlock.Create$257$($New(THdfDirectBlock),Self.FSuperBlock$2,Self,Self.FDataObject$2);
+            Block$1 = THdfCustomBlock.Create$273$($New(THdfDirectBlock),Self.FSuperBlock$2,Self,Self.FDataObject$2);
          }
          THdfCustomBlock.LoadFromStream$12$(Block$1,Stream$17);
       }
@@ -1358,17 +1448,17 @@ var THdfFile = {
       TObject.$Init($);
       $.FDataObject$3 = $.FSuperBlock$3 = null;
    }
-   ,Create$260:function(Self) {
+   ,Create$276:function(Self) {
       TObject.Create(Self);
       Self.FSuperBlock$3 = TObject.Create($New(THdfSuperBlock));
-      Self.FDataObject$3 = THdfDataObject.Create$265($New(THdfDataObject),Self.FSuperBlock$3);
+      Self.FDataObject$3 = THdfDataObject.Create$281($New(THdfDataObject),Self.FSuperBlock$3);
       return Self
    }
    ,GetAttribute:function(Self, Name$7) {
       return THdfDataObject.GetAttribute$1(Self.FDataObject$3,Name$7);
    }
-   ,LoadFromBuffer$1:function(Self, Buffer$3) {
-      THdfFile.LoadFromStream$15(Self,TStream.Create$255($New(TStream),Buffer$3));
+   ,LoadFromBuffer$1:function(Self, Buffer$4) {
+      THdfFile.LoadFromStream$15(Self,TStream.Create$271($New(TStream),Buffer$4));
    }
    ,LoadFromStream$15:function(Self, Stream$18) {
       THdfSuperBlock.LoadFromStream(Self.FSuperBlock$3,Stream$18);
@@ -1388,18 +1478,19 @@ var THdfDirectBlock = {
       var OffsetSize$1 = 0;
       var LengthSize = 0;
       var TypeAndVersion = 0;
-      var OffsetX = 0;
-      var LengthX = 0;
-      var Name$8 = "";
-      var Value$8 = "";
-      var Attribute$3 = null;
       var HeapHeaderAddress = 0;
       var StreamPos$3 = 0;
       var SubDataObject = null;
-      var Temp = 0,
+      var OffsetX = 0,
+         LengthX = 0,
+         Temp = 0,
+         Name$8 = "",
          ValueType = 0,
          TypeExtend = 0,
-         Temp$1 = 0;
+         Value$6 = "",
+         Attribute$3 = null,
+         Temp$1 = 0,
+         Name$9 = "";
       THdfCustomBlock.LoadFromStream$12(Self,Stream$19);
       if (Self.FFractalHeap.FFlags$6&2) {
          Self.FChecksum$1 = TStream.ReadIntegerExcept(Stream$19,4);
@@ -1412,18 +1503,14 @@ var THdfDirectBlock = {
       }
       do {
          TypeAndVersion = TStream.ReadIntegerExcept(Stream$19,1);
-         OffsetX = 0;
-         LengthX = 0;
          OffsetX = TStream.ReadIntegerExcept(Stream$19,OffsetSize$1);
          LengthX = TStream.ReadIntegerExcept(Stream$19,LengthSize);
          if (TypeAndVersion==3) {
-            Temp = 0;
             Temp = TStream.ReadIntegerExcept(Stream$19,5);
             if (Temp!=262152) {
                throw Exception.Create($New(Exception),"Unsupported values");
             }
             Name$8 = TStream.ReadStringExcept(Stream$19,LengthX);
-            Temp = 0;
             Temp = TStream.ReadIntegerExcept(Stream$19,4);
             if (Temp!=19) {
                throw Exception.Create($New(Exception),"Unsupported values");
@@ -1431,28 +1518,24 @@ var THdfDirectBlock = {
             LengthX = TStream.ReadIntegerExcept(Stream$19,2);
             ValueType = TStream.ReadIntegerExcept(Stream$19,4);
             TypeExtend = TStream.ReadIntegerExcept(Stream$19,2);
-            if (ValueType==131072) {
-               if (!TypeExtend) {
-                  Value$8 = TStream.ReadStringExcept(Stream$19,LengthX);
-               } else if (TypeExtend==200) {
-                  Value$8 = "";
-               }
+            Value$6 = "";
+            if (ValueType==131072&&(TypeExtend==0)) {
+               Value$6 = TStream.ReadStringExcept(Stream$19,LengthX);
             }
-            Attribute$3 = THdfAttribute.Create$267($New(THdfAttribute),Name$8);
-            THdfAttribute.SetValueAsString(Attribute$3,Value$8);
+            Attribute$3 = THdfAttribute.Create$283($New(THdfAttribute),Name$8);
+            THdfAttribute.SetValueAsString(Attribute$3,Value$6);
             THdfDataObject.AddAttribute(Self.FDataObject$1,Attribute$3);
          } else if (TypeAndVersion==1) {
-            Temp$1 = 0;
             Temp$1 = TStream.ReadIntegerExcept(Stream$19,6);
             if (Temp$1) {
                throw Exception.Create($New(Exception),"FHDB type 1 unsupported values");
             }
             LengthX = TStream.ReadIntegerExcept(Stream$19,1);
-            Name$8 = TStream.ReadStringExcept(Stream$19,LengthX);
+            Name$9 = TStream.ReadStringExcept(Stream$19,LengthX);
             HeapHeaderAddress = TStream.ReadIntegerExcept(Stream$19,Self.FSuperBlock$1.FOffsetSize);
             StreamPos$3 = Stream$19.FPosition;
             Stream$19.FPosition = HeapHeaderAddress;
-            SubDataObject = THdfDataObject.Create$266($New(THdfDataObject),Self.FSuperBlock$1,Name$8);
+            SubDataObject = THdfDataObject.Create$282($New(THdfDataObject),Self.FSuperBlock$1,Name$9);
             THdfDataObject.LoadFromStream$24(SubDataObject,Stream$19);
             THdfDataObject.AddDataObject(Self.FDataObject$1,SubDataObject);
             Stream$19.FPosition = StreamPos$3;
@@ -1460,7 +1543,7 @@ var THdfDirectBlock = {
       } while (!(TypeAndVersion==0));
    }
    ,Destroy:TObject.Destroy
-   ,Create$257:THdfCustomBlock.Create$257
+   ,Create$273:THdfCustomBlock.Create$273
    ,GetSignature$:function($){return $.GetSignature($)}
    ,LoadFromStream$12$:function($){return $.ClassType.LoadFromStream$12.apply($.ClassType, arguments)}
 };
@@ -1470,7 +1553,7 @@ var THdfBaseDataType = {
       TObject.$Init($);
       $.FDataTypeMessage = null;
    }
-   ,Create$261:function(Self, DatatypeMessage) {
+   ,Create$277:function(Self, DatatypeMessage) {
       Self.FDataTypeMessage = DatatypeMessage;
       return Self
    }
@@ -1478,7 +1561,7 @@ var THdfBaseDataType = {
       /* null */
    }
    ,Destroy:TObject.Destroy
-   ,Create$261$:function($){return $.ClassType.Create$261.apply($.ClassType, arguments)}
+   ,Create$277$:function($){return $.ClassType.Create$277.apply($.ClassType, arguments)}
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeVariableLength = {
@@ -1487,16 +1570,16 @@ var THdfDataTypeVariableLength = {
       THdfBaseDataType.$Init($);
       $.FDataType$2 = null;
    }
-   ,Create$261:function(Self, DatatypeMessage$1) {
-      THdfBaseDataType.Create$261(Self,DatatypeMessage$1);
-      Self.FDataType$2 = THdfDataObjectMessage.Create$256($New(THdfMessageDataType),Self.FDataTypeMessage.FSuperBlock,Self.FDataTypeMessage.FDataObject);
+   ,Create$277:function(Self, DatatypeMessage$1) {
+      THdfBaseDataType.Create$277(Self,DatatypeMessage$1);
+      Self.FDataType$2 = THdfDataObjectMessage.Create$272($New(THdfMessageDataType),Self.FDataTypeMessage.FSuperBlock,Self.FDataTypeMessage.FDataObject);
       return Self
    }
    ,LoadFromStream$17:function(Self, Stream$21) {
       THdfDataObjectMessage.LoadFromStream$1$(Self.FDataType$2,Stream$21);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261$:function($){return $.ClassType.Create$261.apply($.ClassType, arguments)}
+   ,Create$277$:function($){return $.ClassType.Create$277.apply($.ClassType, arguments)}
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeTime = {
@@ -1509,7 +1592,7 @@ var THdfDataTypeTime = {
       Self.FBitPrecision = TStream.ReadIntegerExcept(Stream$22,2);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeString = {
@@ -1518,7 +1601,7 @@ var THdfDataTypeString = {
       THdfBaseDataType.$Init($);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17:THdfBaseDataType.LoadFromStream$17
 };
 var THdfDataTypeReference = {
@@ -1527,7 +1610,7 @@ var THdfDataTypeReference = {
       THdfBaseDataType.$Init($);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17:THdfBaseDataType.LoadFromStream$17
 };
 var THdfDataTypeOpaque = {
@@ -1536,7 +1619,7 @@ var THdfDataTypeOpaque = {
       THdfBaseDataType.$Init($);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17:THdfBaseDataType.LoadFromStream$17
 };
 var THdfDataTypeFloatingPoint = {
@@ -1590,7 +1673,7 @@ var THdfDataTypeFloatingPoint = {
       }
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeFixedPoint = {
@@ -1605,7 +1688,7 @@ var THdfDataTypeFixedPoint = {
       Self.FBitPrecision$2 = TStream.ReadIntegerExcept(Stream$24,2);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeEnumerated = {
@@ -1614,7 +1697,7 @@ var THdfDataTypeEnumerated = {
       THdfBaseDataType.$Init($);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17:THdfBaseDataType.LoadFromStream$17
 };
 var THdfDataTypeCompoundPart = {
@@ -1625,8 +1708,8 @@ var THdfDataTypeCompoundPart = {
       $.FByteOffset = $.FSize$2 = 0;
       $.FDataType$3 = null;
    }
-   ,Create$263:function(Self, DatatypeMessage$2) {
-      Self.FDataType$3 = THdfDataObjectMessage.Create$256($New(THdfMessageDataType),DatatypeMessage$2.FSuperBlock,DatatypeMessage$2.FDataObject);
+   ,Create$279:function(Self, DatatypeMessage$2) {
+      Self.FDataType$3 = THdfDataObjectMessage.Create$272($New(THdfMessageDataType),DatatypeMessage$2.FSuperBlock,DatatypeMessage$2.FDataObject);
       Self.FSize$2 = DatatypeMessage$2.FSize;
       return Self
    }
@@ -1655,27 +1738,27 @@ var THdfDataTypeCompound = {
       THdfBaseDataType.$Init($);
       $.FDataTypes = [];
    }
-   ,Create$261:function(Self, DatatypeMessage$3) {
-      THdfBaseDataType.Create$261(Self,DatatypeMessage$3);
+   ,Create$277:function(Self, DatatypeMessage$3) {
+      THdfBaseDataType.Create$277(Self,DatatypeMessage$3);
       return Self
    }
    ,LoadFromStream$17:function(Self, Stream$26) {
-      var Index$4 = 0;
+      var Index$5 = 0;
       var Count$5 = 0;
       var Part = null;
       if (Self.FDataTypeMessage.FVersion$1!=3) {
          throw Exception.Create($New(Exception),("Error unsupported compound version ("+Self.FDataTypeMessage.FVersion$1.toString()+")"));
       }
       Count$5 = (Self.FDataTypeMessage.FClassBitField[1]<<8)+Self.FDataTypeMessage.FClassBitField[0];
-      var $temp14;
-      for(Index$4=0,$temp14=Count$5;Index$4<$temp14;Index$4++) {
-         Part = THdfDataTypeCompoundPart.Create$263($New(THdfDataTypeCompoundPart),Self.FDataTypeMessage);
+      var $temp15;
+      for(Index$5=0,$temp15=Count$5;Index$5<$temp15;Index$5++) {
+         Part = THdfDataTypeCompoundPart.Create$279($New(THdfDataTypeCompoundPart),Self.FDataTypeMessage);
          THdfDataTypeCompoundPart.ReadFromStream(Part,Stream$26);
          Self.FDataTypes.push(Part);
       }
    }
    ,Destroy:TObject.Destroy
-   ,Create$261$:function($){return $.ClassType.Create$261.apply($.ClassType, arguments)}
+   ,Create$277$:function($){return $.ClassType.Create$277.apply($.ClassType, arguments)}
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeBitfield = {
@@ -1689,7 +1772,7 @@ var THdfDataTypeBitfield = {
       Self.FBitPrecision$3 = TStream.ReadIntegerExcept(Stream$27,2);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17$:function($){return $.ClassType.LoadFromStream$17.apply($.ClassType, arguments)}
 };
 var THdfDataTypeArray = {
@@ -1698,7 +1781,7 @@ var THdfDataTypeArray = {
       THdfBaseDataType.$Init($);
    }
    ,Destroy:TObject.Destroy
-   ,Create$261:THdfBaseDataType.Create$261
+   ,Create$277:THdfBaseDataType.Create$277
    ,LoadFromStream$17:THdfBaseDataType.LoadFromStream$17
 };
 var THdfDataObject = {
@@ -1719,32 +1802,32 @@ var THdfDataObject = {
    ,AddDataObject:function(Self, DataObject$7) {
       Self.FDataObjects.push(DataObject$7);
    }
-   ,Create$266:function(Self, SuperBlock$7, Name$9) {
-      THdfDataObject.Create$265(Self,SuperBlock$7);
-      Self.FName$3 = Name$9;
+   ,Create$282:function(Self, SuperBlock$7, Name$10) {
+      THdfDataObject.Create$281(Self,SuperBlock$7);
+      Self.FName$3 = Name$10;
       return Self
    }
-   ,Create$265:function(Self, SuperBlock$8) {
+   ,Create$281:function(Self, SuperBlock$8) {
       Self.FSuperBlock$4 = SuperBlock$8;
       Self.FName$3 = "";
-      Self.FDataType$4 = THdfDataObjectMessage.Create$256($New(THdfMessageDataType),Self.FSuperBlock$4,Self);
-      Self.FDataSpace = THdfDataObjectMessage.Create$256($New(THdfMessageDataSpace),Self.FSuperBlock$4,Self);
-      Self.FLinkInfo = THdfDataObjectMessage.Create$256($New(THdfMessageLinkInfo),Self.FSuperBlock$4,Self);
-      Self.FGroupInfo = THdfDataObjectMessage.Create$256($New(THdfMessageGroupInfo),Self.FSuperBlock$4,Self);
-      Self.FAttributeInfo = THdfDataObjectMessage.Create$256($New(THdfMessageAttributeInfo),Self.FSuperBlock$4,Self);
-      Self.FAttributesHeap = THdfFractalHeap.Create$259($New(THdfFractalHeap),Self.FSuperBlock$4,Self);
-      Self.FObjectsHeap = THdfFractalHeap.Create$259($New(THdfFractalHeap),Self.FSuperBlock$4,Self);
-      Self.FData = TStream.Create$255($New(TStream),new ArrayBuffer(0));
+      Self.FDataType$4 = THdfDataObjectMessage.Create$272($New(THdfMessageDataType),Self.FSuperBlock$4,Self);
+      Self.FDataSpace = THdfDataObjectMessage.Create$272($New(THdfMessageDataSpace),Self.FSuperBlock$4,Self);
+      Self.FLinkInfo = THdfDataObjectMessage.Create$272($New(THdfMessageLinkInfo),Self.FSuperBlock$4,Self);
+      Self.FGroupInfo = THdfDataObjectMessage.Create$272($New(THdfMessageGroupInfo),Self.FSuperBlock$4,Self);
+      Self.FAttributeInfo = THdfDataObjectMessage.Create$272($New(THdfMessageAttributeInfo),Self.FSuperBlock$4,Self);
+      Self.FAttributesHeap = THdfFractalHeap.Create$275($New(THdfFractalHeap),Self.FSuperBlock$4,Self);
+      Self.FObjectsHeap = THdfFractalHeap.Create$275($New(THdfFractalHeap),Self.FSuperBlock$4,Self);
+      Self.FData = TStream.Create$271($New(TStream),new ArrayBuffer(0));
       return Self
    }
-   ,GetAttribute$1:function(Self, Name$10) {
+   ,GetAttribute$1:function(Self, Name$11) {
       var Result = "";
-      var Index$5 = 0;
+      var Index$6 = 0;
       Result = "";
-      var $temp15;
-      for(Index$5=0,$temp15=THdfDataObject.GetAttributeListCount(Self);Index$5<$temp15;Index$5++) {
-         if (THdfDataObject.GetAttributeListItem(Self,Index$5).FName$4==Name$10) {
-            return THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(Self,Index$5));
+      var $temp16;
+      for(Index$6=0,$temp16=THdfDataObject.GetAttributeListCount(Self);Index$6<$temp16;Index$6++) {
+         if (THdfDataObject.GetAttributeListItem(Self,Index$6).FName$4==Name$11) {
+            return THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(Self,Index$6));
          }
       }
       return Result
@@ -1752,32 +1835,44 @@ var THdfDataObject = {
    ,GetAttributeListCount:function(Self) {
       return Self.FAttributeList.length;
    }
-   ,GetAttributeListItem:function(Self, Index$6) {
+   ,GetAttributeListItem:function(Self, Index$7) {
       var Result = null;
-      if (Index$6<0||Index$6>=Self.FAttributeList.length) {
-         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$6.toString()+")"));
-      }
-      Result = Self.FAttributeList[Index$6];
-      return Result
-   }
-   ,GetDataLayoutChunk:function(Self, Index$7) {
-      var Result = 0;
-      if (Index$7<0||Index$7>=Self.FDataLayoutChunk.length) {
+      if (Index$7<0||Index$7>=Self.FAttributeList.length) {
          throw Exception.Create($New(Exception),("Index out of bounds ("+Index$7.toString()+")"));
       }
-      Result = Self.FDataLayoutChunk[Index$7];
+      Result = Self.FAttributeList[Index$7];
       return Result
    }
-   ,GetDataObject:function(Self, Index$8) {
-      var Result = null;
-      if (Index$8<0||Index$8>=Self.FDataObjects.length) {
+   ,GetDataLayoutChunk:function(Self, Index$8) {
+      var Result = 0;
+      if (Index$8<0||Index$8>=Self.FDataLayoutChunk.length) {
          throw Exception.Create($New(Exception),("Index out of bounds ("+Index$8.toString()+")"));
       }
-      Result = Self.FDataObjects[Index$8];
+      Result = Self.FDataLayoutChunk[Index$8];
+      return Result
+   }
+   ,GetDataObject:function(Self, Index$9) {
+      var Result = null;
+      if (Index$9<0||Index$9>=Self.FDataObjects.length) {
+         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$9.toString()+")"));
+      }
+      Result = Self.FDataObjects[Index$9];
       return Result
    }
    ,GetDataObjectCount:function(Self) {
       return Self.FDataObjects.length;
+   }
+   ,HasAttribute$1:function(Self, Name$12) {
+      var Result = false;
+      var Index$10 = 0;
+      Result = false;
+      var $temp17;
+      for(Index$10=0,$temp17=THdfDataObject.GetAttributeListCount(Self);Index$10<$temp17;Index$10++) {
+         if (THdfDataObject.GetAttributeListItem(Self,Index$10).FName$4==Name$12) {
+            return true;
+         }
+      }
+      return Result
    }
    ,LoadFromStream$24:function(Self, Stream$28) {
       Self.FSignature$2 = TStream.ReadStringExcept(Stream$28,4);
@@ -1842,22 +1937,22 @@ var THdfDataObject = {
                DataObjectMessage = Self.FDataType$4;
                break;
             case 5 :
-               DataObjectMessage = THdfDataObjectMessage.Create$256($New(THdfMessageDataFill),Self.FSuperBlock$4,Self);
+               DataObjectMessage = THdfDataObjectMessage.Create$272($New(THdfMessageDataFill),Self.FSuperBlock$4,Self);
                break;
             case 8 :
-               DataObjectMessage = THdfDataObjectMessage.Create$256($New(THdfMessageDataLayout),Self.FSuperBlock$4,Self);
+               DataObjectMessage = THdfDataObjectMessage.Create$272($New(THdfMessageDataLayout),Self.FSuperBlock$4,Self);
                break;
             case 10 :
                DataObjectMessage = Self.FGroupInfo;
                break;
             case 11 :
-               DataObjectMessage = THdfDataObjectMessage.Create$256($New(THdfMessageFilterPipeline),Self.FSuperBlock$4,Self);
+               DataObjectMessage = THdfDataObjectMessage.Create$272($New(THdfMessageFilterPipeline),Self.FSuperBlock$4,Self);
                break;
             case 12 :
-               DataObjectMessage = THdfDataObjectMessage.Create$256($New(THdfMessageAttribute),Self.FSuperBlock$4,Self);
+               DataObjectMessage = THdfDataObjectMessage.Create$272($New(THdfMessageAttribute),Self.FSuperBlock$4,Self);
                break;
             case 16 :
-               DataObjectMessage = THdfDataObjectMessage.Create$256($New(THdfMessageHeaderContinuation),Self.FSuperBlock$4,Self);
+               DataObjectMessage = THdfDataObjectMessage.Create$272($New(THdfMessageHeaderContinuation),Self.FSuperBlock$4,Self);
                break;
             case 21 :
                DataObjectMessage = Self.FAttributeInfo;
@@ -1882,9 +1977,9 @@ var THdfAttribute = {
       $.FName$4 = "";
       $.FStream = null;
    }
-   ,Create$267:function(Self, Name$11) {
-      Self.FName$4 = Trim$_String_(Name$11);
-      Self.FStream = TStream.Create$255($New(TStream),new ArrayBuffer(0));
+   ,Create$283:function(Self, Name$13) {
+      Self.FName$4 = Name$13;
+      Self.FStream = TStream.Create$271($New(TStream),new ArrayBuffer(0));
       return Self
    }
    ,GetValueAsInteger:function(Self) {
@@ -1895,21 +1990,21 @@ var THdfAttribute = {
    }
    ,GetValueAsString:function(Self) {
       var Result = "";
-      if (!TStream.a$35(Self.FStream)) {
+      if (!TStream.a$36(Self.FStream)) {
          Result = "";
          return Result;
       }
       Self.FStream.FPosition = 0;
-      Result = TStream.ReadStringExcept(Self.FStream,TStream.a$35(Self.FStream));
+      Result = TStream.ReadStringExcept(Self.FStream,TStream.a$36(Self.FStream));
       return Result
    }
-   ,SetValueAsInteger:function(Self, Value$9) {
+   ,SetValueAsInteger:function(Self, Value$7) {
       TStream.Clear$1(Self.FStream);
-      TStream.WriteInteger(Self.FStream,4,Value$9);
+      TStream.WriteInteger(Self.FStream,4,Value$7);
    }
-   ,SetValueAsString:function(Self, Value$10) {
+   ,SetValueAsString:function(Self, Value$8) {
       TStream.Clear$1(Self.FStream);
-      TStream.WriteString(Self.FStream,Value$10);
+      TStream.WriteString(Self.FStream,Value$8);
    }
    ,Destroy:TObject.Destroy
 };
@@ -1924,7 +2019,7 @@ var TSofaFile = {
    $ClassName:"TSofaFile",$Parent:TObject
    ,$Init:function ($) {
       TObject.$Init($);
-      $.FAPIName = $.FAPIVersion = $.FApplicationName = $.FApplicationVersion = $.FAuthorContact = $.FComment = $.FDataType = $.FDateCreated = $.FDateModified = $.FHistory = $.FLicense = $.FOrganization = $.FOrigin = $.FReferences = $.FRoomType = $.FTitle = "";
+      $.FAPIName = $.FAPIVersion = $.FApplicationName = $.FApplicationVersion = $.FAuthorContact = $.FComment = $.FDataType = $.FDateCreated = $.FDateModified = $.FHistory = $.FLicense = $.FOrganization = $.FOrigin = $.FReferences = $.FRoomLocation = $.FRoomType = $.FTitle = "";
       $.FDelay = [];
       $.FEmitterPositions = [];
       $.FImpulseResponses = [];
@@ -1936,34 +2031,45 @@ var TSofaFile = {
       $.FSampleRate = [];
       $.FSourcePositions = [];
    }
-   ,GetDelay:function(Self, Index$9) {
+   ,GetDelay:function(Self, Index$11) {
       var Result = 0;
-      if (Index$9<0||Index$9>=Self.FDelay.length) {
-         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$9.toString()+")"));
+      if (Index$11<0||Index$11>=Self.FDelay.length) {
+         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$11.toString()+")"));
       }
-      Result = Self.FDelay[Index$9];
+      Result = Self.FDelay[Index$11];
       return Result
    }
-   ,GetSampleRate:function(Self, Index$10) {
+   ,GetImpulseResponse:function(Self, MeasurementIndex, ReceiverIndex) {
+      return Self.FImpulseResponses[MeasurementIndex][ReceiverIndex];
+   }
+   ,GetSampleRate:function(Self, Index$12) {
       var Result = 0;
-      if (Index$10<0||Index$10>=Self.FSampleRate.length) {
-         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$10.toString()+")"));
+      if (Index$12<0||Index$12>=Self.FSampleRate.length) {
+         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$12.toString()+")"));
       }
-      Result = Self.FSampleRate[Index$10];
+      Result = Self.FSampleRate[Index$12];
       return Result
    }
-   ,LoadFromBuffer:function(Self, Buffer$4) {
+   ,GetSourcePositions:function(Self, Index$13) {
+      var Result = {X$2:0,Y$2:0,Z:0};
+      if (Index$13<0||Index$13>=Self.FSourcePositions.length) {
+         throw Exception.Create($New(Exception),("Index out of bounds ("+Index$13.toString()+")"));
+      }
+      Copy$TVector3(Self.FSourcePositions[Index$13],Result);
+      return Result
+   }
+   ,LoadFromBuffer:function(Self, Buffer$5) {
       var HdfFile = null;
-      var Index$11 = 0;
-      HdfFile = THdfFile.Create$260($New(THdfFile));
+      var Index$14 = 0;
+      HdfFile = THdfFile.Create$276($New(THdfFile));
       try {
-         THdfFile.LoadFromBuffer$1(HdfFile,Buffer$4);
+         THdfFile.LoadFromBuffer$1(HdfFile,Buffer$5);
          if (THdfFile.GetAttribute(HdfFile,"Conventions")!="SOFA") {
             throw Exception.Create($New(Exception),"File does not contain the SOFA convention");
          }
-         var $temp16;
-         for(Index$11=0,$temp16=THdfDataObject.GetDataObjectCount(HdfFile.FDataObject$3);Index$11<$temp16;Index$11++) {
-            TSofaFile.ReadDataObject(Self,THdfDataObject.GetDataObject(HdfFile.FDataObject$3,Index$11));
+         var $temp18;
+         for(Index$14=0,$temp18=THdfDataObject.GetDataObjectCount(HdfFile.FDataObject$3);Index$14<$temp18;Index$14++) {
+            TSofaFile.ReadDataObject(Self,THdfDataObject.GetDataObject(HdfFile.FDataObject$3,Index$14));
          }
          TSofaFile.ReadAttributes(Self,HdfFile.FDataObject$3);
       } finally {
@@ -1971,56 +2077,63 @@ var TSofaFile = {
       }
    }
    ,ReadAttributes:function(Self, DataObject$8) {
-      var Index$12 = 0;
-      var $temp17;
-      for(Index$12=0,$temp17=THdfDataObject.GetAttributeListCount(DataObject$8);Index$12<$temp17;Index$12++) {
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="DateModified") {
-            Self.FDateModified = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+      var Index$15 = 0;
+      var Attribute$5 = null,
+         AttributeName = "";
+      var $temp19;
+      for(Index$15=0,$temp19=THdfDataObject.GetAttributeListCount(DataObject$8);Index$15<$temp19;Index$15++) {
+         Attribute$5 = THdfDataObject.GetAttributeListItem(DataObject$8,Index$15);
+         AttributeName = Attribute$5.FName$4;
+         if (AttributeName=="DateModified") {
+            Self.FDateModified = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="History") {
-            Self.FHistory = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="History") {
+            Self.FHistory = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="Comment") {
-            Self.FComment = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="Comment") {
+            Self.FComment = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="License") {
-            Self.FLicense = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="License") {
+            Self.FLicense = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="FAPIVersion: tring;") {
-            Self.FAPIVersion = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="APIVersion") {
+            Self.FAPIVersion = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="APIName") {
-            Self.FAPIName = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="APIName") {
+            Self.FAPIName = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="Origin") {
-            Self.FOrigin = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="Origin") {
+            Self.FOrigin = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="Title") {
-            Self.FTitle = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="Title") {
+            Self.FTitle = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="DateCreated") {
-            Self.FDateCreated = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="DateCreated") {
+            Self.FDateCreated = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="References") {
-            Self.FReferences = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="References") {
+            Self.FReferences = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="DataType") {
-            Self.FDataType = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="DataType") {
+            Self.FDataType = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="Organization") {
-            Self.FOrganization = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="Organization") {
+            Self.FOrganization = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="RoomType") {
-            Self.FRoomType = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="RoomLocation") {
+            Self.FRoomLocation = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="ApplicationVersion") {
-            Self.FApplicationVersion = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="RoomType") {
+            Self.FRoomType = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="ApplicationName") {
-            Self.FApplicationName = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="ApplicationVersion") {
+            Self.FApplicationVersion = THdfAttribute.GetValueAsString(Attribute$5);
          }
-         if (THdfDataObject.GetAttributeListItem(DataObject$8,Index$12).FName$4=="AuthorContact") {
-            Self.FAuthorContact = THdfAttribute.GetValueAsString(THdfDataObject.GetAttributeListItem(DataObject$8,Index$12));
+         if (AttributeName=="ApplicationName") {
+            Self.FApplicationName = THdfAttribute.GetValueAsString(Attribute$5);
+         }
+         if (AttributeName=="AuthorContact") {
+            Self.FAuthorContact = THdfAttribute.GetValueAsString(Attribute$5);
          }
       }
    }
@@ -2029,36 +2142,48 @@ var TSofaFile = {
          ItemCount$1 = 0,
          ItemCount$2 = 0,
          ItemCount$3 = 0,
-         Index$13 = 0;
-      var Position$2 = {X$2:0,Y$2:0,Z:0};
-      var ItemCount$4 = 0,
-         Index$14 = 0;
-      var Position$3 = {X$2:0,Y$2:0,Z:0};
-      var ItemCount$5 = 0,
-         Index$15 = 0;
-      var Position$4 = {X$2:0,Y$2:0,Z:0};
-      var ItemCount$6 = 0,
+         IsCartesian = false,
          Index$16 = 0;
-      var Position$5 = {X$2:0,Y$2:0,Z:0};
-      var ItemCount$7 = 0,
-         MeasurementIndex = 0;
-      var ReceiverIndex = 0;
-      var Index$17 = 0;
-      var ItemCount$8 = 0,
+      var Position$3 = {X$2:0,Y$2:0,Z:0};
+      var ItemCount$4 = 0,
+         IsCartesian$1 = false,
+         Index$17 = 0;
+      var Position$4 = {X$2:0,Y$2:0,Z:0};
+      var ItemCount$5 = 0,
+         IsCartesian$2 = false,
          Index$18 = 0;
-      var SampleRate$1 = 0,
-         ItemCount$9 = 0,
+      var Position$5 = {X$2:0,Y$2:0,Z:0};
+      var ItemCount$6 = 0,
+         IsCartesian$3 = false,
          Index$19 = 0;
+      var Position$6 = {X$2:0,Y$2:0,Z:0};
+      var ItemCount$7 = 0,
+         MeasurementIndex$1 = 0;
+      var ReceiverIndex$1 = 0;
+      var ImpulseResponse$1 = null,
+         Index$20 = 0;
+      var ItemCount$8 = 0,
+         Index$21 = 0;
+      var SampleRate$2 = 0,
+         ItemCount$9 = 0,
+         Index$22 = 0;
       var Delay$1 = 0;
-      function GetDimension$1(Text$8) {
-         Text$8={v:Text$8};
+      function ConvertPosition(Position$7) {
+         var Result = {X$2:0,Y$2:0,Z:0};
+         Result.X$2 = Position$7.Z*Math.cos(DegToRad(Position$7.Y$2))*Math.cos(DegToRad(Position$7.X$2));
+         Result.Y$2 = Position$7.Z*Math.cos(DegToRad(Position$7.Y$2))*Math.sin(DegToRad(Position$7.X$2));
+         Result.Z = Position$7.Z*Math.sin(DegToRad(Position$7.Y$2));
+         return Result
+      };
+      function GetDimension$1(Text$9) {
+         Text$9={v:Text$9};
          var Result = 0;
          var TextPos = 0;
          Result = 0;
-         TextPos = (Text$8.v.indexOf("This is a netCDF dimension but not a netCDF variable.")+1);
+         TextPos = (Text$9.v.indexOf("This is a netCDF dimension but not a netCDF variable.")+1);
          if (TextPos>0) {
-            Delete(Text$8,TextPos,53);
-            Result = parseInt(Trim$_String_(Text$8.v),10);
+            Delete(Text$9,TextPos,53);
+            Result = parseInt(Trim$_String_(Text$9.v),10);
          }
          return Result
       };
@@ -2085,92 +2210,121 @@ var TSofaFile = {
          $Assert(THdfDataObject.GetAttribute$1(DataObject$9,"CLASS")=="DIMENSION_SCALE","","");
          ItemCount$2 = GetDimension$1(THdfDataObject.GetAttribute$1(DataObject$9,"NAME"));
       } else if (DataObject$9.FName$3=="ListenerPosition") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$3 = $Div(TStream.a$35(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$3 = $Div(TStream.a$36(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
          $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
-         var $temp18;
-         for(Index$13=0,$temp18=ItemCount$3;Index$13<$temp18;Index$13++) {
-            Position$2.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
-            Position$2.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
-            Position$2.Z = TStream.ReadFloat(DataObject$9.FData,8);
-            Self.FListenerPositions.push(Clone$TVector3(Position$2));
+         IsCartesian = true;
+         if (THdfDataObject.HasAttribute$1(DataObject$9,"Type")) {
+            IsCartesian = THdfDataObject.GetAttribute$1(DataObject$9,"Type")=="cartesian";
          }
-      } else if (DataObject$9.FName$3=="ReceiverPosition") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$4 = $Div(TStream.a$35(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
-         $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
-         var $temp19;
-         for(Index$14=0,$temp19=ItemCount$4;Index$14<$temp19;Index$14++) {
+         var $temp20;
+         for(Index$16=0,$temp20=ItemCount$3;Index$16<$temp20;Index$16++) {
             Position$3.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$3.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$3.Z = TStream.ReadFloat(DataObject$9.FData,8);
-            Self.FReceiverPositions.push(Clone$TVector3(Position$3));
+            if (!(IsCartesian)) {
+               Position$3 = ConvertPosition(Clone$TVector3(Position$3));
+            }
+            Self.FListenerPositions.push(Clone$TVector3(Position$3));
          }
-      } else if (DataObject$9.FName$3=="SourcePosition") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$5 = $Div(TStream.a$35(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
-         Self.FNumberOfSources = ItemCount$5;
+      } else if (DataObject$9.FName$3=="ReceiverPosition") {
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$4 = $Div(TStream.a$36(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
          $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
-         var $temp20;
-         for(Index$15=0,$temp20=ItemCount$5;Index$15<$temp20;Index$15++) {
+         IsCartesian$1 = true;
+         if (THdfDataObject.HasAttribute$1(DataObject$9,"Type")) {
+            IsCartesian$1 = THdfDataObject.GetAttribute$1(DataObject$9,"Type")=="cartesian";
+         }
+         var $temp21;
+         for(Index$17=0,$temp21=ItemCount$4;Index$17<$temp21;Index$17++) {
             Position$4.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$4.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$4.Z = TStream.ReadFloat(DataObject$9.FData,8);
-            Self.FSourcePositions.push(Clone$TVector3(Position$4));
+            if (!(IsCartesian$1)) {
+               Position$4 = ConvertPosition(Clone$TVector3(Position$4));
+            }
+            Self.FReceiverPositions.push(Clone$TVector3(Position$4));
          }
-      } else if (DataObject$9.FName$3=="EmitterPosition") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$6 = $Div(TStream.a$35(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
+      } else if (DataObject$9.FName$3=="SourcePosition") {
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$5 = $Div(TStream.a$36(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
+         Self.FNumberOfSources = ItemCount$5;
          $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
-         var $temp21;
-         for(Index$16=0,$temp21=ItemCount$6;Index$16<$temp21;Index$16++) {
+         IsCartesian$2 = true;
+         if (THdfDataObject.HasAttribute$1(DataObject$9,"Type")) {
+            IsCartesian$2 = THdfDataObject.GetAttribute$1(DataObject$9,"Type")=="cartesian";
+         }
+         var $temp22;
+         for(Index$18=0,$temp22=ItemCount$5;Index$18<$temp22;Index$18++) {
             Position$5.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$5.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
             Position$5.Z = TStream.ReadFloat(DataObject$9.FData,8);
-            Self.FEmitterPositions.push(Clone$TVector3(Position$5));
+            if (!(IsCartesian$2)) {
+               Position$5 = ConvertPosition(Clone$TVector3(Position$5));
+            }
+            Self.FSourcePositions.push(Clone$TVector3(Position$5));
+         }
+      } else if (DataObject$9.FName$3=="EmitterPosition") {
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$6 = $Div(TStream.a$36(DataObject$9.FData),3*DataObject$9.FDataType$4.FSize);
+         $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
+         IsCartesian$3 = true;
+         if (THdfDataObject.HasAttribute$1(DataObject$9,"Type")) {
+            IsCartesian$3 = THdfDataObject.GetAttribute$1(DataObject$9,"Type")=="cartesian";
+         }
+         var $temp23;
+         for(Index$19=0,$temp23=ItemCount$6;Index$19<$temp23;Index$19++) {
+            Position$6.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
+            Position$6.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
+            Position$6.Z = TStream.ReadFloat(DataObject$9.FData,8);
+            if (!(IsCartesian$3)) {
+               Position$6 = ConvertPosition(Clone$TVector3(Position$6));
+            }
+            Self.FEmitterPositions.push(Clone$TVector3(Position$6));
          }
       } else if (DataObject$9.FName$3=="ListenerUp") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
          $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
          Self.FListenerUp.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
          Self.FListenerUp.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
          Self.FListenerUp.Z = TStream.ReadFloat(DataObject$9.FData,8);
       } else if (DataObject$9.FName$3=="ListenerView") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
          $Assert(DataObject$9.FDataType$4.FDataClass==1,"","");
          Self.FListenerView.X$2 = TStream.ReadFloat(DataObject$9.FData,8);
          Self.FListenerView.Y$2 = TStream.ReadFloat(DataObject$9.FData,8);
          Self.FListenerView.Z = TStream.ReadFloat(DataObject$9.FData,8);
       } else if (DataObject$9.FName$3=="Data.IR") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
          ItemCount$7 = (Self.FNumberOfMeasurements*Self.FNumberOfReceivers*Self.FNumberOfDataSamples)*8;
-         $Assert(TStream.a$35(DataObject$9.FData)==ItemCount$7,"","");
+         $Assert(TStream.a$36(DataObject$9.FData)==ItemCount$7,"","");
          $ArraySetLenC(Self.FImpulseResponses,Self.FNumberOfMeasurements,function (){return []});
-         var $temp22;
-         for(MeasurementIndex=0,$temp22=Self.FNumberOfMeasurements;MeasurementIndex<$temp22;MeasurementIndex++) {
-            $ArraySetLenC(Self.FImpulseResponses[MeasurementIndex],Self.FNumberOfReceivers,function (){return []});
-            var $temp23;
-            for(ReceiverIndex=0,$temp23=Self.FNumberOfReceivers;ReceiverIndex<$temp23;ReceiverIndex++) {
-               $ArraySetLen(Self.FImpulseResponses[MeasurementIndex][ReceiverIndex],Self.FNumberOfDataSamples,0);
-               var $temp24;
-               for(Index$17=0,$temp24=Self.FNumberOfDataSamples;Index$17<$temp24;Index$17++) {
-                  Self.FImpulseResponses[MeasurementIndex][ReceiverIndex][Index$17]=TStream.ReadFloat(DataObject$9.FData,8);
+         var $temp24;
+         for(MeasurementIndex$1=0,$temp24=Self.FNumberOfMeasurements;MeasurementIndex$1<$temp24;MeasurementIndex$1++) {
+            $ArraySetLenC(Self.FImpulseResponses[MeasurementIndex$1],Self.FNumberOfReceivers,function (){return null});
+            var $temp25;
+            for(ReceiverIndex$1=0,$temp25=Self.FNumberOfReceivers;ReceiverIndex$1<$temp25;ReceiverIndex$1++) {
+               ImpulseResponse$1 = new Float64Array(Self.FNumberOfDataSamples);
+               var $temp26;
+               for(Index$20=0,$temp26=Self.FNumberOfDataSamples;Index$20<$temp26;Index$20++) {
+                  ImpulseResponse$1[Index$20]=TStream.ReadFloat(DataObject$9.FData,8);
                }
+               Self.FImpulseResponses[MeasurementIndex$1][ReceiverIndex$1]=ImpulseResponse$1;
             }
          }
       } else if (DataObject$9.FName$3=="Data.SamplingRate") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$8 = $Div(TStream.a$35(DataObject$9.FData),DataObject$9.FDataType$4.FSize);
-         var $temp25;
-         for(Index$18=0,$temp25=ItemCount$8;Index$18<$temp25;Index$18++) {
-            SampleRate$1 = TStream.ReadFloat(DataObject$9.FData,8);
-            Self.FSampleRate.push(SampleRate$1);
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$8 = $Div(TStream.a$36(DataObject$9.FData),DataObject$9.FDataType$4.FSize);
+         var $temp27;
+         for(Index$21=0,$temp27=ItemCount$8;Index$21<$temp27;Index$21++) {
+            SampleRate$2 = TStream.ReadFloat(DataObject$9.FData,8);
+            Self.FSampleRate.push(SampleRate$2);
          }
       } else if (DataObject$9.FName$3=="Data.Delay") {
-         $Assert(TStream.a$35(DataObject$9.FData)>0,"","");
-         ItemCount$9 = $Div(TStream.a$35(DataObject$9.FData),DataObject$9.FDataType$4.FSize);
-         var $temp26;
-         for(Index$19=0,$temp26=ItemCount$9;Index$19<$temp26;Index$19++) {
+         $Assert(TStream.a$36(DataObject$9.FData)>0,"","");
+         ItemCount$9 = $Div(TStream.a$36(DataObject$9.FData),DataObject$9.FDataType$4.FSize);
+         var $temp28;
+         for(Index$22=0,$temp28=ItemCount$9;Index$22<$temp28;Index$22++) {
             Delay$1 = TStream.ReadFloat(DataObject$9.FData,8);
             Self.FDelay.push(Delay$1);
          }
@@ -2191,11 +2345,362 @@ function Clone$TVector3($) {
       Z:$.Z
    }
 }
+var TTextAreaElement = {
+   $ClassName:"TTextAreaElement",$Parent:THtmlElement
+   ,$Init:function ($) {
+      THtmlElement.$Init($);
+   }
+   ,a$4:function(Self) {
+      return Self.FElement;
+   }
+   ,a$3:function(Self) {
+      return TTextAreaElement.a$4(Self).value;
+   }
+   ,a$2:function(Self, Value$9) {
+      TTextAreaElement.a$4(Self).value = Value$9;
+   }
+   ,Create$158:function(Self, Owner$4) {
+      THtmlElement.Create$158(Self,Owner$4);
+      return Self
+   }
+   ,ElementName:function(Self) {
+      return "textarea";
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
+   ,ElementName$:function($){return $.ElementName($)}
+   ,Resize:THtmlElement.Resize
+};
+TTextAreaElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TInputElement = {
+   $ClassName:"TInputElement",$Parent:THtmlElement
+   ,$Init:function ($) {
+      THtmlElement.$Init($);
+   }
+   ,ElementName:function(Self) {
+      return "input";
+   }
+   ,a$21:function(Self) {
+      return Self.FElement;
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158:THtmlElement.Create$158
+   ,ElementName$:function($){return $.ElementName($)}
+   ,Resize:THtmlElement.Resize
+};
+TInputElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TInputFileElement = {
+   $ClassName:"TInputFileElement",$Parent:TInputElement
+   ,$Init:function ($) {
+      TInputElement.$Init($);
+   }
+   ,Create$158:function(Self, Owner$5) {
+      THtmlElement.Create$158(Self,Owner$5);
+      TInputElement.a$21(Self).type = "file";
+      return Self
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
+   ,ElementName:TInputElement.ElementName
+   ,Resize:THtmlElement.Resize
+};
+TInputFileElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TCustomHeadingElement = {
+   $ClassName:"TCustomHeadingElement",$Parent:THtmlElement
+   ,$Init:function ($) {
+      THtmlElement.$Init($);
+      $.FTextNode$4 = null;
+   }
+   ,a$28:function(Self) {
+      return Self.FTextNode$4.data;
+   }
+   ,a$27:function(Self, Value$10) {
+      Self.FTextNode$4.data = Value$10;
+   }
+   ,Create$158:function(Self, Owner$6) {
+      THtmlElement.Create$158(Self,Owner$6);
+      Self.FTextNode$4 = document.createTextNode("");
+      Self.FElement.appendChild(Self.FTextNode$4);
+      return Self
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158$:function($){return $.ClassType.Create$158.apply($.ClassType, arguments)}
+   ,ElementName:THtmlElement.ElementName
+   ,Resize:THtmlElement.Resize
+};
+TCustomHeadingElement.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TH1Element = {
+   $ClassName:"TH1Element",$Parent:TCustomHeadingElement
+   ,$Init:function ($) {
+      TCustomHeadingElement.$Init($);
+   }
+   ,ElementName:function(Self) {
+      return "H1";
+   }
+   ,Destroy:THtmlElement.Destroy
+   ,AfterConstructor:THtmlElement.AfterConstructor
+   ,Create$158:TCustomHeadingElement.Create$158
+   ,ElementName$:function($){return $.ElementName($)}
+   ,Resize:THtmlElement.Resize
+};
+TH1Element.$Intf={
+   IHtmlElementOwner:[THtmlElement.GetHtmlElement]
+}
+var TApplication = {
+   $ClassName:"TApplication",$Parent:TObject
+   ,$Init:function ($) {
+      TObject.$Init($);
+      $.FElements = [];
+      $.FPixelRatio = 0;
+   }
+   ,Create$175:function(Self) {
+      document.addEventListener("deviceready",$Event0(Self,TApplication.DeviceReady),false);
+      Self.FPixelRatio = 1;
+      Self.FPixelRatio = window.devicePixelRatio || 1;
+      return Self
+   }
+   ,CreateElement:function(Self, HtmlElementClass) {
+      var Result = null;
+      Result = THtmlElement.Create$158$($NewDyn(HtmlElementClass,""),$AsIntf(Self,"IHtmlElementOwner"));
+      Self.FElements.push(Result);
+      return Result
+   }
+   ,Destroy:function(Self) {
+      TObject.Destroy(Self);
+   }
+   ,DeviceReady:function(Self) {
+      document.addEventListener("pause",$Event0(Self,TApplication.Pause),false);
+      document.addEventListener("resume",$Event0(Self,TApplication.Resume),false);
+      CordovaAvailable = true;
+   }
+   ,GetHtmlElement$1:function(Self) {
+      return document.body;
+   }
+   ,Pause:function(Self) {
+      /* null */
+   }
+   ,Resume:function(Self) {
+      /* null */
+   }
+   ,Run:function(Self) {
+      /* null */
+   }
+   ,Destroy$:function($){return $.ClassType.Destroy($)}
+};
+TApplication.$Intf={
+   IHtmlElementOwner:[TApplication.GetHtmlElement$1]
+}
+var TTrack = {
+   $ClassName:"TTrack",$Parent:TObject
+   ,$Init:function ($) {
+      TObject.$Init($);
+      $.FAudioBuffer = $.FAudioBufferSource = $.FConvolverNode = $.FOnEnded = $.FOnReady = null;
+      $.FHrtfIndex = 0;
+      $.FText = "";
+   }
+   ,Create$287:function(Self, Text$10, OnReady) {
+      Self.FText = Text$10;
+      Self.FOnReady = OnReady;
+      Self.FConvolverNode = AudioContext.createConvolver();
+      Self.FConvolverNode.normalize = false;
+      Self.FConvolverNode.connect(AudioContext.destination);
+      TTrack.RequestAudio(Self);
+      return Self
+   }
+   ,FromHrtf:function(Self, Hrtfs, Index$23) {
+      var HrtfBuffer = null,
+         OfflineAudioContext = null;
+      var Buffer$6 = null,
+         BufferSource = null;
+      HrtfBuffer = AudioContext.createBuffer(2,Hrtfs.FSampleFrames,AudioContext.sampleRate);
+      HrtfBuffer.copyToChannel(THrtfs.GetMeasurement(Hrtfs,Index$23).FLeft,0);
+      HrtfBuffer.copyToChannel(THrtfs.GetMeasurement(Hrtfs,Index$23).FRight,1);
+      Self.FHrtfIndex = Index$23;
+      if (AudioContext.sampleRate!=Hrtfs.FSampleRate$1) {
+         console.log("Samplerate adaption");
+         var OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      OfflineAudioContext = new OfflineAudioContext(2, Hrtfs.FSampleFrames, AudioContext.sampleRate);
+         Buffer$6 = AudioContext.createBuffer(2,Hrtfs.FSampleFrames,AudioContext.sampleRate);
+         BufferSource = OfflineAudioContext.createBufferSource();
+         BufferSource.buffer = HrtfBuffer;
+         BufferSource.connect(OfflineAudioContext.destination);
+         BufferSource.start(0);
+         OfflineAudioContext.oncomplete = function (Event$1) {
+            var Result = undefined;
+            var OfflineAudioEvent = null;
+            OfflineAudioEvent = Event$1;
+            HrtfBuffer = OfflineAudioEvent.renderedBuffer;
+            Result = false;
+            return Result
+         };
+         OfflineAudioContext.startRendering();
+      }
+      $Assert(HrtfBuffer.sampleRate==AudioContext.sampleRate,"","");
+      Self.FConvolverNode.buffer = HrtfBuffer;
+   }
+   ,RequestAudio:function(Self) {
+      var Request = null;
+      Request = new XMLHttpRequest();
+      Request.open("GET","Audio\\"+Self.FText+".wav",true);
+      Request.responseType = "arraybuffer";
+      Request.onload = function (_implicit_event$1) {
+         var Result = undefined;
+         if (AudioContext) {
+            AudioContext.decodeAudioData(Request.response,function (DecodedData) {
+               Self.FAudioBuffer = DecodedData;
+               TTrack.SetupAudioBufferNode(Self);
+               if (Self.FOnReady) {
+                  Self.FOnReady(Self);
+               }
+            },function (error$13) {
+               console.log("Error loading file "+Self.FText);
+            });
+         } else {
+            Result = false;
+         }
+         return Result
+      };
+      Request.onerror = function (_implicit_event$2) {
+         var Result = undefined;
+         console.log("Error loading file!");
+         Result = false;
+         return Result
+      };
+      Request.send();
+   }
+   ,SetupAudioBufferNode:function(Self) {
+      Self.FAudioBufferSource = AudioContext.createBufferSource();
+      Self.FAudioBufferSource.buffer = Self.FAudioBuffer;
+      Self.FAudioBufferSource.connect(Self.FConvolverNode);
+      Self.FAudioBufferSource.onended = function (_implicit_event$3) {
+         var Result = undefined;
+         TTrack.SetupAudioBufferNode(Self);
+         if (Self.FOnEnded) {
+            Self.FOnEnded(Self);
+         }
+         Result = false;
+         return Result
+      };
+   }
+   ,Destroy:TObject.Destroy
+};
+var THrtfs = {
+   $ClassName:"THrtfs",$Parent:TObject
+   ,$Init:function ($) {
+      TObject.$Init($);
+      $.FMeasurements = [];
+      $.FSampleFrames = 0;
+      $.FSampleRate$1 = $.FScaleFactor = 0;
+   }
+   ,a$37:function(Self) {
+      return Self.FMeasurements.length;
+   }
+   ,Create$285:function(Self, SofaFile) {
+      var MinZ = 0,
+         MeasurementIndex$2 = 0;
+      var Position$8 = {X$2:0,Y$2:0,Z:0},
+         MeasurementIndex$3 = 0;
+      var GlobalMaxLevel = 0,
+         a$41 = 0;
+      var Measurement$1 = null,
+         MaxLevel = 0;
+      var a$42 = [];
+      Self.FSampleFrames = SofaFile.FNumberOfDataSamples;
+      Self.FSampleRate$1 = TSofaFile.GetSampleRate(SofaFile,0);
+      $Assert(SofaFile.FNumberOfMeasurements==SofaFile.FNumberOfSources,"","");
+      MinZ = Math.abs(TSofaFile.GetSourcePositions(SofaFile,0).Z);
+      var $temp29;
+      for(MeasurementIndex$2=1,$temp29=SofaFile.FNumberOfMeasurements;MeasurementIndex$2<$temp29;MeasurementIndex$2++) {
+         Position$8 = TSofaFile.GetSourcePositions(SofaFile,MeasurementIndex$2);
+         if (Math.abs(Position$8.Z)<MinZ) {
+            MinZ = Math.abs(Position$8.Z);
+         }
+      }
+      var $temp30;
+      for(MeasurementIndex$3=0,$temp30=SofaFile.FNumberOfMeasurements;MeasurementIndex$3<$temp30;MeasurementIndex$3++) {
+         if (Math.abs(TSofaFile.GetSourcePositions(SofaFile,MeasurementIndex$3).Z)>MinZ) {
+            continue;
+         }
+         $Assert(SofaFile.FNumberOfReceivers>=2,"","");
+         Self.FMeasurements.push(THrtfMeasurement.Create$286($New(THrtfMeasurement),TSofaFile.GetSourcePositions(SofaFile,MeasurementIndex$3),new Float32Array(TSofaFile.GetImpulseResponse(SofaFile,MeasurementIndex$3,0)),new Float32Array(TSofaFile.GetImpulseResponse(SofaFile,MeasurementIndex$3,1))));
+      }
+      GlobalMaxLevel = 0;
+      a$42 = Self.FMeasurements;
+      var $temp31;
+      for(a$41=0,$temp31=a$42.length;a$41<$temp31;a$41++) {
+         Measurement$1 = a$42[a$41];
+         MaxLevel = THrtfMeasurement.GetMaxLevel(Measurement$1);
+         if (MaxLevel>GlobalMaxLevel) {
+            GlobalMaxLevel = MaxLevel;
+         }
+      }
+      Self.FScaleFactor = (GlobalMaxLevel!=0)?1/GlobalMaxLevel:1;
+      return Self
+   }
+   ,GetMeasurement:function(Self, Index$24) {
+      var Result = null;
+      if (Index$24<0&&Index$24>=Self.FMeasurements.length) {
+         throw Exception.Create($New(Exception),"Index out of bounds");
+      }
+      Result = Self.FMeasurements[Index$24];
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+};
+var THrtfMeasurement = {
+   $ClassName:"THrtfMeasurement",$Parent:TObject
+   ,$Init:function ($) {
+      TObject.$Init($);
+      $.FLeft = $.FRight = null;
+      $.FPosition$1 = {X$2:0,Y$2:0,Z:0};
+   }
+   ,Create$286:function(Self, Position$9, Left$1, Right$1) {
+      Copy$TVector3(Position$9,Self.FPosition$1);
+      Self.FLeft = Left$1;
+      Self.FRight = Right$1;
+      return Self
+   }
+   ,GetMaxLevel:function(Self) {
+      var Result = 0;
+      var Index$25 = 0;
+      var Index$26 = 0;
+      Result = 0;
+      var $temp32;
+      for(Index$25=0,$temp32=Self.FLeft.length;Index$25<$temp32;Index$25++) {
+         if (Math.abs(Self.FLeft[Index$25])>Result) {
+            Result = Math.abs(Self.FLeft[Index$25]);
+         }
+      }
+      var $temp33;
+      for(Index$26=0,$temp33=Self.FRight.length;Index$26<$temp33;Index$26++) {
+         if (Math.abs(Self.FRight[Index$26])>Result) {
+            Result = Math.abs(Self.FRight[Index$26]);
+         }
+      }
+      return Result
+   }
+   ,Destroy:TObject.Destroy
+};
 var Counter = 0;
 var Application = null;
 var CordovaAvailable = false;
 var MainScreen = null;
 var Application = TApplication.Create$175($New(TApplication));
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+    AudioContext = new AudioContext();
+;
 TApplication.CreateElement(Application,TMainScreen);
 TApplication.Run(Application);
 
