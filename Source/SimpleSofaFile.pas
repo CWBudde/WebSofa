@@ -3,14 +3,12 @@ unit SimpleSofaFile;
 interface
 
 uses
-  ECMA.TypedArray, WHATWG.Encoding;
+  ECMA.TypedArray, ECMA.Map, WHATWG.Encoding;
 
 type
   EHdfInvalidFormat = class(Exception);
 
-  TVector3 = record
-    X, Y, Z: Float;
-  end;
+  TVector3 = array [0..2] of Float;
 
   THdfSignature = String;
 
@@ -272,11 +270,6 @@ type
     FStartingBlockSize: Integer;
     FMaximumDirectBlockSize: Integer;
     FMaximumHeapSize: Integer;
-    FStartingNumber: Integer;
-    FAddressOfRootBlock: Integer;
-    FCurrentNumberOfRows: Integer;
-    FSizeOfFilteredRootDirectBlock: Integer;
-    FIOFilterMask: Integer;
   protected
     property SuperBlock: THdfSuperBlock read FSuperBlock;
   public
@@ -320,7 +313,6 @@ type
   THdfIndirectBlock = class(THdfCustomBlock)
   private
     FInitialBlockSize: Integer;
-    FMaximumNumberOfDirectBlockRows: Integer;
   protected
     class function GetSignature: THdfSignature; override;
   public
@@ -334,16 +326,8 @@ type
   private
     FName: String;
     FSuperBlock: THdfSuperBlock;
-    FSignature: THdfSignature;
-    FVersion: Integer;
-    FFlags: Integer;
-    FAccessTime: Integer;
-    FModificationTime: Integer;
-    FChangeTime: Integer;
-    FBirthTime: Integer;
     FChunkSize: Integer;
-    FMaximumCompact: Integer;
-    FMinimumDense: Integer;
+    FFlags: Integer;
 
     FDataLayoutChunk: array of Integer;
 
@@ -418,9 +402,26 @@ type
     property DataObject: THdfDataObject read FDataObject;
   end;
 
-  TSofaAttribute = record
-    Name: String;
-    Value: String;
+  TSofaPositions = class
+  private
+    FPositions: array of TVector3;
+    FIsSpherical: Boolean;
+  public
+    constructor Create(IsSpherical: Boolean);
+
+    procedure LoadFromStream(Stream: TStream; const DataSize: Integer);
+
+    function GetPosition(const Index: Integer): TVector3; overload;
+    function GetPosition(const Index: Integer; Spherical: Boolean): TVector3; overload;
+
+    property IsSpherical: Boolean read FIsSpherical;
+    property Count: Integer read (Length(FPositions));
+  end;
+
+  JSofaFilter = class external
+    SampleRate: Float;
+    Left, Right: JFloat64Array;
+    LeftDelay, RightDelay: Float;
   end;
 
   TSofaFile = class
@@ -429,22 +430,19 @@ type
     FNumberOfDataSamples: Integer;
     FNumberOfEmitters: Integer;
     FNumberOfReceivers: Integer;
-    FListenerPositions: array of TVector3;
-    FReceiverPositions: array of TVector3;
-    FSourcePositions: array of TVector3;
-    FEmitterPositions: array of TVector3;
+    FNumberOfSources: Integer;
+    FNumberOfListeners: Integer;
+    FListenerPositions: TSofaPositions;
+    FReceiverPositions: TSofaPositions;
+    FSourcePositions: TSofaPositions;
+    FEmitterPositions: TSofaPositions;
     FListenerUp: TVector3;
     FListenerView: TVector3;
     FSampleRate: array of Float;
     FImpulseResponses: array of array of JFloat64Array;
     FDelay: array of Float;
-    FNumberOfSources: Integer;
-    FAttributes: array of TSofaAttribute;
+    FAttributes: JMap;
     procedure ReadDataObject(DataObject: THdfDataObject);
-    function GetEmitterPositions(Index: Integer): TVector3;
-    function GetListenerPositions(Index: Integer): TVector3;
-    function GetReceiverPositions(Index: Integer): TVector3;
-    function GetSourcePositions(Index: Integer): TVector3;
     function GetSampleRate(Index: Integer): Float;
     function GetDelay(Index: Integer): Float;
     function GetDelayCount: Integer;
@@ -453,17 +451,20 @@ type
   public
     procedure LoadFromBuffer(Buffer: JArrayBuffer);
 
-    property Attributes: array of TSofaAttribute read FAttributes;
+    function GetClosestIndexCartesian(X, Y, Z: Float): Integer;
+    function GetClosestIndexSpherical(Phi, Theta, Radius: Float): Integer;
+
+    property Attributes: JMap read FAttributes;
     property NumberOfMeasurements: Integer read FNumberOfMeasurements;
+    property NumberOfListeners: Integer read FNumberOfListeners;
     property NumberOfReceivers: Integer read FNumberOfReceivers;
     property NumberOfEmitters: Integer read FNumberOfEmitters;
     property NumberOfDataSamples: Integer read FNumberOfDataSamples;
     property NumberOfSources: Integer read FNumberOfSources;
-
-    property ListenerPositions[Index: Integer]: TVector3 read GetListenerPositions;
-    property ReceiverPositions[Index: Integer]: TVector3 read GetReceiverPositions;
-    property SourcePositions[Index: Integer]: TVector3 read GetSourcePositions;
-    property EmitterPositions[Index: Integer]: TVector3 read GetEmitterPositions;
+    property ListenerPositions: TSofaPositions read FListenerPositions;
+    property ReceiverPositions: TSofaPositions read FReceiverPositions;
+    property SourcePositions: TSofaPositions read FSourcePositions;
+    property EmitterPositions: TSofaPositions read FEmitterPositions;
     property ListenerUp: TVector3 read FListenerUp;
     property ListenerView: TVector3 read FListenerView;
     property ImpulseResponse[MeasurementIndex, ReceiverIndex: Integer]: JFloat64Array read GetImpulseResponse;
@@ -473,8 +474,29 @@ type
     property DelayCount: Integer read GetDelayCount;
   end;
 
-function LoadSofaFile(Buffer: JArrayBuffer): TSofaFile; export;
-function GetSofaAttribute(SofaFile: TSofaFile; const AttributeName: String): String; export;
+  TGetPositionCallback = procedure(Position: array [0..2] of Float);
+
+function sofaLoadFile(Buffer: JArrayBuffer): TSofaFile; export;
+function sofaGetAttribute(SofaFile: TSofaFile; const AttributeName: String): String; export;
+procedure sofaGetListenerPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False); export;
+procedure sofaGetReceiverPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False); export;
+procedure sofaGetSourcePosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False); export;
+procedure sofaGetEmitterPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False); export;
+
+function sofaGetListenerPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3; export;
+function sofaGetReceiverPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3; export;
+function sofaGetSourcePositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3; export;
+function sofaGetEmitterPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3; export;
+
+function sofaGetSampleRates(SofaFile: TSofaFile): array of Float; export;
+function sofaGetSofaDelays(SofaFile: TSofaFile): array of Float; export;
+
+function sofaGetImpulseResponses(SofaFile: TSofaFile): array of array of JFloat64Array; export;
+function sofaGetFilterCartesian(SofaFile: TSofaFile; X, Y, Z: Float): JSofaFilter; export;
+function sofaGetFilterSpherical(SofaFile: TSofaFile; Phi, Theta, Radius: Float): JSofaFilter; export;
+
+function SphericalToCartesian(Position: TVector3): TVector3; export;
+function CartesianToSpherical(Position: TVector3): TVector3; export;
 
 implementation
 
@@ -748,7 +770,6 @@ begin
   FType := Stream.ReadInteger(1);
 
   // read dimension size
-  //SetLength(FDimensionSize, FDimensionality);
   for Index := 0 to FDimensionality - 1 do
   begin
     var Size := Stream.ReadInteger(Superblock.LengthsSize);
@@ -854,8 +875,8 @@ end;
 
 constructor THdfDataTypeCompoundPart.Create(DatatypeMessage: THdfMessageDataType);
 begin
-  var DataType := THdfMessageDataType.Create(DatatypeMessage.Superblock, DatatypeMessage.DataObject);
-  var Size := DatatypeMessage.Size;
+  FDataType := THdfMessageDataType.Create(DatatypeMessage.Superblock, DatatypeMessage.DataObject);
+  FSize := DatatypeMessage.Size;
 end;
 
 procedure THdfDataTypeCompoundPart.ReadFromStream(Stream: TStream);
@@ -1252,8 +1273,7 @@ begin
       raise Exception.Create(RStrUnsupportedFilter);
     var Flags := Stream.ReadInteger(2);
     var NumberClientDataValues := Stream.ReadInteger(2);
-    for var ValueIndex := 0 to NumberClientDataValues - 1 do
-      Stream.ReadInteger(4);
+    Stream.Seek(4 * NumberClientDataValues, True);
   end;
 end;
 
@@ -1299,38 +1319,16 @@ end;
 { THdfMessageAttribute }
 
 procedure THdfMessageAttribute.ReadData(Stream: TStream; Attribute: THdfAttribute);
-var
-  Name: String;
-  Value: Integer;
-  Dimension: Integer;
-  EndAddress: Integer;
 begin
   case FDatatypeMessage.DataClass of
     3:
-      begin
-        SetLength(Name, FDatatypeMessage.Size);
-        Name := Stream.ReadString(FDatatypeMessage.Size);
-        Attribute.ValueAsString := Name;
-      end;
+      Attribute.ValueAsString := Stream.ReadString(FDatatypeMessage.Size);
     6:
-      begin
-        // TODO
-        Stream.Seek(FDatatypeMessage.Size, True);
-      end;
+      Stream.Seek(FDatatypeMessage.Size, True);
     7:
-      begin
-        Value := Stream.ReadInteger(4);
-        Attribute.ValueAsInteger := Value;
-        // TODO
-      end;
+      Attribute.ValueAsInteger := Stream.ReadInteger(4);
     9:
-      begin
-        Dimension := Stream.ReadInteger(4);
-        EndAddress := Stream.ReadInteger(4);
-
-        Value := Stream.ReadInteger(4);
-        Value := Stream.ReadInteger(4);
-      end;
+      Stream.Seek(16, True);
     else
       raise Exception.Create(RStrErrorUnknownDataClass);
   end;
@@ -1387,18 +1385,15 @@ end;
 { THdfMessageHeaderContinuation }
 
 procedure THdfMessageHeaderContinuation.LoadFromStream(Stream: TStream);
-var
-  StreamPos: Integer;
-  Signature: THdfSignature;
 begin
   var Offset := Stream.ReadInteger(Superblock.OffsetSize);
   var LengthX := Stream.ReadInteger(Superblock.LengthsSize);
 
-  StreamPos := Stream.Position;
+  var StreamPos := Stream.Position;
   Stream.Position := Offset;
 
   // read signature
-  Signature := Stream.ReadString(4);
+  var Signature := Stream.ReadString(4);
   if Signature <> 'OCHK' then
     raise Exception.Create(Format(RStrWrongSignature, [Signature]));
 
@@ -1582,17 +1577,17 @@ begin
   RowsCount := Round(log2(FInitialBlockSize) - log2(FFractalHeap.StartingBlockSize)) + 1;
 
   // The maximum number of rows of direct blocks, max_dblock_rows, in any indirect block of a fractal heap is given by the following expression: */
-  FMaximumNumberOfDirectBlockRows := Round(log2(FFractalHeap.MaximumDirectBlockSize)
+  var MaximumNumberOfDirectBlockRows := Round(log2(FFractalHeap.MaximumDirectBlockSize)
       - log2(FFractalHeap.StartingBlockSize)) + 2;
 
   // Using the computed values for nrows and max_dblock_rows, along with the Width of the doubling table, the number of direct and indirect block entries (K and N in the indirect block description, below) in an indirect block can be computed:
-  if (RowsCount < FMaximumNumberOfDirectBlockRows) then
+  if (RowsCount < MaximumNumberOfDirectBlockRows) then
     k := RowsCount * FFractalHeap.TableWidth
   else
-    k := FMaximumNumberOfDirectBlockRows * FFractalHeap.TableWidth;
+    k := MaximumNumberOfDirectBlockRows * FFractalHeap.TableWidth;
 
   // If nrows is less than or equal to max_dblock_rows, N is 0. Otherwise, N is simply computed:
-  n := k - (FMaximumNumberOfDirectBlockRows * FFractalHeap.TableWidth);
+  n := k - (MaximumNumberOfDirectBlockRows * FFractalHeap.TableWidth);
 
   while (k > 0) do
   begin
@@ -1680,14 +1675,11 @@ begin
   FStartingBlockSize := Stream.ReadInteger(SuperBlock.LengthsSize);
   FMaximumDirectBlockSize := Stream.ReadInteger(SuperBlock.LengthsSize);
   FMaximumHeapSize := Stream.ReadInteger(2);
-  FStartingNumber := Stream.ReadInteger(2);
-  FAddressOfRootBlock := Stream.ReadInteger(SuperBlock.OffsetSize);
-  FCurrentNumberOfRows := Stream.ReadInteger(2);
+  var StartingNumber := Stream.ReadInteger(2);
+  var AddressOfRootBlock := Stream.ReadInteger(SuperBlock.OffsetSize);
+  var CurrentNumberOfRows := Stream.ReadInteger(2);
   if FEncodedLength > 0 then
-  begin
-    FSizeOfFilteredRootDirectBlock := Stream.ReadInteger(SuperBlock.LengthsSize);
-    FIOFilterMask := Stream.ReadInteger(4);
-  end;
+    Stream.Seek(SuperBlock.LengthsSize + 4, True);
 
   if (FNumberOfHugeObjects > 0) then
     raise Exception.Create(RStrNoHugeObjects);
@@ -1695,11 +1687,11 @@ begin
   if (FNumberOfTinyObjects > 0) then
     raise Exception.Create(RStrNoTinyObjects);
 
-  if (FAddressOfRootBlock > 0) and (FAddressOfRootBlock < Superblock.EndOfFileAddress) then
+  if (AddressOfRootBlock > 0) and (AddressOfRootBlock < Superblock.EndOfFileAddress) then
   begin
-    Stream.Position := FAddressOfRootBlock;
+    Stream.Position := AddressOfRootBlock;
 
-    if FCurrentNumberOfRows <> 0 then
+    if CurrentNumberOfRows <> 0 then
       Block := THdfIndirectBlock.Create(SuperBlock, Self, FDataObject)
     else
       Block := THdfDirectBlock.Create(SuperBlock, Self, FDataObject);
@@ -1805,31 +1797,26 @@ end;
 
 procedure THdfDataObject.LoadFromStream(Stream: TStream);
 begin
-  FSignature := Stream.ReadString(4);
-  if FSignature <> 'OHDR' then
-    raise Exception.Create(Format(RStrWrongSignature, [string(FSignature)]));
+  var Signature := Stream.ReadString(4);
+  if Signature <> 'OHDR' then
+    raise Exception.Create(Format(RStrWrongSignature, [Signature]));
 
   // read version
-  FVersion := Stream.ReadInteger(1);
-  if FVersion <> 2 then
+  var Version := Stream.ReadInteger(1);
+  if Version <> 2 then
     raise Exception.Create(RStrInvalidVersion);
 
   FFlags := Stream.ReadInteger(1);
 
-  // eventually read time stamps
+  // eventually skip time stamps
   if (FFlags and (1 shl 5)) <> 0 then
-  begin
-    FAccessTime := Stream.ReadInteger(4);
-    FModificationTime := Stream.ReadInteger(4);
-    FChangeTime := Stream.ReadInteger(4);
-    FBirthTime := Stream.ReadInteger(4);
-  end;
+    Stream.Seek(16, True);
 
   // eventually skip number of attributes
   if (FFlags and (1 shl 4)) <> 0 then
   begin
-    FMaximumCompact := Stream.ReadInteger(2);
-    FMinimumDense := Stream.ReadInteger(2);
+    var MaximumCompact := Stream.ReadInteger(2);
+    var MinimumDense := Stream.ReadInteger(2);
   end;
 
   FChunkSize := Stream.ReadInteger(1 shl (FFlags and 3));
@@ -1965,34 +1952,10 @@ begin
   Result := Length(FDelay);
 end;
 
-function TSofaFile.GetEmitterPositions(Index: Integer): TVector3;
-begin
-  if (Index < 0) or (Index >= Length(FEmitterPositions)) then
-    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
-
-  Result := FEmitterPositions[Index];
-end;
-
 function TSofaFile.GetImpulseResponse(MeasurementIndex,
   ReceiverIndex: Integer): JFloat64Array;
 begin
   Result := FImpulseResponses[MeasurementIndex, ReceiverIndex];
-end;
-
-function TSofaFile.GetListenerPositions(Index: Integer): TVector3;
-begin
-  if (Index < 0) or (Index >= Length(FListenerPositions)) then
-    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
-
-  Result := FListenerPositions[Index];
-end;
-
-function TSofaFile.GetReceiverPositions(Index: Integer): TVector3;
-begin
-  if (Index < 0) or (Index >= Length(FReceiverPositions)) then
-    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
-
-  Result := FReceiverPositions[Index];
 end;
 
 function TSofaFile.GetSampleRate(Index: Integer): Float;
@@ -2008,18 +1971,9 @@ begin
   Result := Length(FSampleRate);
 end;
 
-function TSofaFile.GetSourcePositions(Index: Integer): TVector3;
-begin
-  if (Index < 0) or (Index >= Length(FSourcePositions)) then
-    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
-
-  Result := FSourcePositions[Index];
-end;
-
 procedure TSofaFile.LoadFromBuffer(Buffer: JArrayBuffer);
 var
   HdfFile: THdfFile;
-  Index: Integer;
 begin
   HdfFile := THdfFile.Create;
   try
@@ -2027,16 +1981,14 @@ begin
     if HdfFile.GetAttribute('Conventions') <> 'SOFA' then
       raise Exception.Create(RStrSofaConventionMissing);
 
-    for Index := 0 to HdfFile.DataObject.DataObjectCount - 1 do
+    for var Index := 0 to HdfFile.DataObject.DataObjectCount - 1 do
       ReadDataObject(HdfFile.DataObject.DataObject[Index]);
 
+    FAttributes := JMap.Create;
     for var Index := 0 to HdfFile.DataObject.AttributeListCount - 1 do
     begin
       var Attribute := HdfFile.DataObject.AttributeListItem[Index];
-      var SofaAttribute: TSofaAttribute;
-      SofaAttribute.Name := Attribute.Name;
-      SofaAttribute.Value := Attribute.ValueAsString;
-      FAttributes.Add(SofaAttribute);
+      FAttributes.set(Attribute.Name, Attribute.ValueAsString);
     end;
   finally
     HdfFile.Free;
@@ -2060,19 +2012,12 @@ procedure TSofaFile.ReadDataObject(DataObject: THdfDataObject);
     end;
   end;
 
-  function ConvertPosition(Position: TVector3): TVector3;
-  begin
-    Result.X := Position.Z * Cos(DegToRad(Position.Y)) * Cos(DegToRad(Position.X));
-    Result.Y := Position.Z * Cos(DegToRad(Position.Y)) * Sin(DegToRad(Position.X));
-    Result.Z := Position.Z * Sin(DegToRad(Position.Y));
-  end;
-
 const
   CClassIdentifier = 'CLASS';
   CDimensionScaleIdentifier = 'DIMENSION_SCALE';
   CNameIdentifier = 'NAME';
   CTypeIdentifier = 'Type';
-  CCartesianIdentifier = 'cartesian';
+  CSphericalIdentifier = 'spherical';
 begin
   DataObject.Data.Position := 0;
   if DataObject.Name = 'M' then
@@ -2113,103 +2058,70 @@ begin
   else if DataObject.Name = 'ListenerPosition' then
   begin
     Assert(DataObject.Data.Size > 0);
-    var ItemCount := DataObject.Data.Size div (3 * DataObject.DataType.Size);
     Assert(DataObject.DataType.DataClass = 1);
+    FNumberOfListeners := DataObject.Data.Size div (3 * DataObject.DataType.Size);
 
-    var IsCartesian := True;
+    var IsSpherical := False;
     if DataObject.HasAttribute(CTypeIdentifier) then
-      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
+      IsSpherical := DataObject.GetAttribute(CTypeIdentifier) = CSphericalIdentifier;
 
-    for var Index := 0 to ItemCount - 1 do
-    begin
-      var Position: TVector3;
-      Position.X := DataObject.Data.ReadFloat(8);
-      Position.Y := DataObject.Data.ReadFloat(8);
-      Position.Z := DataObject.Data.ReadFloat(8);
-      if not IsCartesian then
-        Position := ConvertPosition(Position);
-      FListenerPositions.Add(Position);
-    end;
+    FListenerPositions := TSofaPositions.Create(IsSpherical);
+    FListenerPositions.LoadFromStream(DataObject.Data, DataObject.DataType.Size);
   end
   else if DataObject.Name = 'ReceiverPosition' then
   begin
     Assert(DataObject.Data.Size > 0);
-    var ItemCount := DataObject.Data.Size div (3 * DataObject.DataType.Size);
     Assert(DataObject.DataType.DataClass = 1);
+    FNumberOfReceivers := DataObject.Data.Size div (3 * DataObject.DataType.Size);
 
-    var IsCartesian := True;
+    var IsSpherical := False;
     if DataObject.HasAttribute(CTypeIdentifier) then
-      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
+      IsSpherical := DataObject.GetAttribute(CTypeIdentifier) = CSphericalIdentifier;
 
-    for var Index := 0 to ItemCount - 1 do
-    begin
-      var Position: TVector3;
-      Position.X := DataObject.Data.ReadFloat(8);
-      Position.Y := DataObject.Data.ReadFloat(8);
-      Position.Z := DataObject.Data.ReadFloat(8);
-      if not IsCartesian then
-        Position := ConvertPosition(Position);
-      FReceiverPositions.Add(Position);
-    end;
+    FReceiverPositions := TSofaPositions.Create(IsSpherical);
+    FReceiverPositions.LoadFromStream(DataObject.Data, DataObject.DataType.Size);
   end
   else if DataObject.Name = 'SourcePosition' then
   begin
     Assert(DataObject.Data.Size > 0);
-    var ItemCount := DataObject.Data.Size div (3 * DataObject.DataType.Size);
-    FNumberOfSources := ItemCount;
     Assert(DataObject.DataType.DataClass = 1);
+    FNumberOfSources := DataObject.Data.Size div (3 * DataObject.DataType.Size);
 
-    var IsCartesian := True;
+    var IsSpherical := False;
     if DataObject.HasAttribute(CTypeIdentifier) then
-      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
+      IsSpherical := DataObject.GetAttribute(CTypeIdentifier) = CSphericalIdentifier;
 
-    for var Index := 0 to ItemCount - 1 do
-    begin
-      var Position: TVector3;
-      Position.X := DataObject.Data.ReadFloat(8);
-      Position.Y := DataObject.Data.ReadFloat(8);
-      Position.Z := DataObject.Data.ReadFloat(8);
-      if not IsCartesian then
-        Position := ConvertPosition(Position);
-      FSourcePositions.Add(Position);
-    end;
+    FSourcePositions := TSofaPositions.Create(IsSpherical);
+    FSourcePositions.LoadFromStream(DataObject.Data, DataObject.DataType.Size);
   end
   else if DataObject.Name = 'EmitterPosition' then
   begin
     Assert(DataObject.Data.Size > 0);
-    var ItemCount := DataObject.Data.Size div (3 * DataObject.DataType.Size);
     Assert(DataObject.DataType.DataClass = 1);
+    FNumberOfEmitters := DataObject.Data.Size div (3 * DataObject.DataType.Size);
 
-    var IsCartesian := True;
+    var IsSpherical := False;
     if DataObject.HasAttribute(CTypeIdentifier) then
-      IsCartesian := DataObject.GetAttribute(CTypeIdentifier) = CCartesianIdentifier;
+      IsSpherical := DataObject.GetAttribute(CTypeIdentifier) = CSphericalIdentifier;
 
-    for var Index := 0 to ItemCount - 1 do
-    begin
-      var Position: TVector3;
-      Position.X := DataObject.Data.ReadFloat(8);
-      Position.Y := DataObject.Data.ReadFloat(8);
-      Position.Z := DataObject.Data.ReadFloat(8);
-      if not IsCartesian then
-        Position := ConvertPosition(Position);
-      FEmitterPositions.Add(Position);
-    end;
+    FEmitterPositions := TSofaPositions.Create(IsSpherical);
+    FEmitterPositions.LoadFromStream(DataObject.Data, DataObject.DataType.Size);
   end
   else if DataObject.Name = 'ListenerUp' then
   begin
     Assert(DataObject.Data.Size > 0);
     Assert(DataObject.DataType.DataClass = 1);
-    FListenerUp.X := DataObject.Data.ReadFloat(8);
-    FListenerUp.Y := DataObject.Data.ReadFloat(8);
-    FListenerUp.Z := DataObject.Data.ReadFloat(8);
+    FListenerUp[0] := DataObject.Data.ReadFloat(8);
+    FListenerUp[1] := DataObject.Data.ReadFloat(8);
+    FListenerUp[2] := DataObject.Data.ReadFloat(8);
   end
   else if DataObject.Name = 'ListenerView' then
   begin
     Assert(DataObject.Data.Size > 0);
     Assert(DataObject.DataType.DataClass = 1);
-    FListenerView.X := DataObject.Data.ReadFloat(8);
-    FListenerView.Y := DataObject.Data.ReadFloat(8);
-    FListenerView.Z := DataObject.Data.ReadFloat(8);
+    FListenerView[0] := DataObject.Data.ReadFloat(8);
+    FListenerView[1] := DataObject.Data.ReadFloat(8);
+    FListenerView[2] := DataObject.Data.ReadFloat(8);
   end
   else if DataObject.Name = 'Data.IR' then
   begin
@@ -2254,18 +2166,201 @@ begin
   end;
 end;
 
-function LoadSofaFile(Buffer: JArrayBuffer): TSofaFile;
+function TSofaFile.GetClosestIndexSpherical(Phi, Theta, Radius: Float): Integer;
+begin
+  var Position: array [0 .. 2] of Float;
+  Position[0] := Phi;
+  Position[1] := Theta;
+  Position[2] := Radius;
+  Position := SphericalToCartesian(Position);
+  Result := GetClosestIndexCartesian(Position[0], Position[1], Position[2]);
+end;
+
+function TSofaFile.GetClosestIndexCartesian(X, Y, Z: Float): Integer;
+begin
+  Result := 0;
+  var CurrentPosition := FListenerPositions.GetPosition(0, False);
+  var Distance := Sqrt(Sqr(X - CurrentPosition[0]) +
+    Sqr(Y - CurrentPosition[1]) + Sqr(Z - CurrentPosition[1]));
+
+  for var Index := 1 to FListenerPositions.Count - 1 do
+  begin
+    CurrentPosition := FListenerPositions.GetPosition(Index, False);
+    var CurrentDistance := Sqrt(Sqr(X - CurrentPosition[0]) +
+      Sqr(Y - CurrentPosition[1]) + Sqr(Z - CurrentPosition[1]));
+    if CurrentDistance < Distance then
+    begin
+      Distance := CurrentDistance;
+      Result := Index;
+    end;
+  end;
+end;
+
+
+{ TSofaPositions }
+
+constructor TSofaPositions.Create(IsSpherical: Boolean);
+begin
+  FIsSpherical := IsSpherical;
+end;
+
+procedure TSofaPositions.LoadFromStream(Stream: TStream; const DataSize: Integer);
+begin
+  Assert(DataSize = 8);
+
+  for var Index := 0 to (Stream.Size div (3 * DataSize)) - 1 do
+  begin
+    var Position: TVector3;
+    Position[0] := Stream.ReadFloat(DataSize);
+    Position[1] := Stream.ReadFloat(DataSize);
+    Position[2] := Stream.ReadFloat(DataSize);
+    FPositions.Add(Position);
+  end;
+end;
+
+function TSofaPositions.GetPosition(const Index: Integer): TVector3;
+begin
+  if (Index < 0) or (Index >= Length(FPositions)) then
+    raise Exception.Create(Format(RStrIndexOutOfBounds, [Index]));
+
+  Result := FPositions[Index];
+end;
+
+function TSofaPositions.GetPosition(const Index: Integer; Spherical: Boolean): TVector3;
+begin
+  Result := GetPosition(Index);
+
+  // eventually convert position
+  if Spherical <> IsSpherical then
+    if Spherical then
+      Result := CartesianToSpherical(Result)
+    else
+      Result := SphericalToCartesian(Result);
+end;
+
+
+{ API }
+
+function sofaLoadFile(Buffer: JArrayBuffer): TSofaFile;
 begin
   Result := TSofaFile.Create;
   Result.LoadFromBuffer(Buffer);
 end;
 
-function GetSofaAttribute(SofaFile: TSofaFile; const AttributeName: String): String;
+function sofaGetAttribute(SofaFile: TSofaFile; const AttributeName: String): String;
 begin
   Result := '';
-  for var Attribute in SofaFile.Attributes do
-    if Attribute.Name = AttributeName then
-      exit(Attribute.Value);;
+  if SofaFile.Attributes.has(AttributeName) then
+    exit(SofaFile.Attributes.get(AttributeName));
+end;
+
+function SphericalToCartesian(Position: TVector3): TVector3;
+begin
+  Result[0] := Position[2] * Cos(DegToRad(Position[1])) * Cos(DegToRad(Position[0]));
+  Result[1] := Position[2] * Cos(DegToRad(Position[1])) * Sin(DegToRad(Position[0]));
+  Result[2] := Position[2] * Sin(DegToRad(Position[1]));
+end;
+
+function CartesianToSpherical(Position: TVector3): TVector3;
+begin
+  Result[2] := Sqrt(Sqr(Position[0]) + Sqr(Position[1]) + Sqr(Position[2]));
+  Result[1] := ArcSin(Position[2] / Result[2]);
+  Result[0] := ArcTan2(Position[1], Position[0]);
+end;
+
+procedure sofaGetListenerPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False);
+begin
+  for var Index := 0 to SofaFile.NumberOfListeners - 1 do
+    Callback(SofaFile.ListenerPositions.GetPosition(Index, Spherical));
+end;
+
+procedure sofaGetReceiverPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False);
+begin
+  for var Index := 0 to SofaFile.NumberOfReceivers - 1 do
+    Callback(SofaFile.ReceiverPositions.GetPosition(Index, Spherical));
+end;
+
+procedure sofaGetSourcePosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False);
+begin
+  for var Index := 0 to SofaFile.NumberOfSources - 1 do
+    Callback(SofaFile.SourcePositions.GetPosition(Index, Spherical));
+end;
+
+procedure sofaGetEmitterPosition(SofaFile: TSofaFile; Callback: TGetPositionCallback; Spherical: Boolean = False);
+begin
+  for var Index := 0 to SofaFile.NumberOfEmitters - 1 do
+    Callback(SofaFile.EmitterPositions.GetPosition(Index, Spherical));
+end;
+
+function sofaGetListenerPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3;
+begin
+  for var Index := 0 to SofaFile.NumberOfListeners - 1 do
+    Result.Add(SofaFile.ListenerPositions.GetPosition(Index, Spherical));
+end;
+
+function sofaGetReceiverPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3;
+begin
+  for var Index := 0 to SofaFile.NumberOfReceivers - 1 do
+    Result.Add(SofaFile.ReceiverPositions.GetPosition(Index, Spherical));
+end;
+
+function sofaGetSourcePositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3;
+begin
+  for var Index := 0 to SofaFile.NumberOfSources - 1 do
+    Result.Add(SofaFile.SourcePositions.GetPosition(Index, Spherical));
+end;
+
+function sofaGetEmitterPositionList(SofaFile: TSofaFile; Spherical: Boolean = False): array of TVector3;
+begin
+  for var Index := 0 to SofaFile.NumberOfEmitters - 1 do
+    Result.Add(SofaFile.EmitterPositions.GetPosition(Index, Spherical));
+end;
+
+function sofaGetSampleRates(SofaFile: TSofaFile): array of Float;
+begin
+  for var Index := 0 to SofaFile.SampleRateCount - 1 do
+    Result.Add(SofaFile.SampleRate[Index]);
+end;
+
+function sofaGetSofaDelays(SofaFile: TSofaFile): array of Float;
+begin
+  for var Index := 0 to SofaFile.DelayCount - 1 do
+    Result.Add(SofaFile.Delay[Index]);
+end;
+
+function sofaGetImpulseResponses(SofaFile: TSofaFile): array of array of JFloat64Array;
+begin
+  Result.SetLength(SofaFile.NumberOfMeasurements);
+  for var MeasurementIndex := 0 to SofaFile.NumberOfMeasurements - 1 do
+  begin
+    Result[MeasurementIndex].SetLength(SofaFile.NumberOfReceivers);
+    for var ReceiverIndex := 0 to SofaFile.NumberOfReceivers - 1 do
+      Result[MeasurementIndex, ReceiverIndex] := SofaFile.ImpulseResponse[MeasurementIndex, ReceiverIndex]
+  end;
+end;
+
+function sofaGetFilterCartesian(SofaFile: TSofaFile; X, Y, Z: Float): JSofaFilter;
+begin
+  var Index := SofaFile.GetClosestIndexCartesian(X, Y, Z);
+  Result := JSofaFilter(class
+      SampleRate = SofaFile.SampleRate[0];
+      Left = SofaFile.ImpulseResponse[Index, 0];
+      Right = SofaFile.ImpulseResponse[Index, 1];
+      LeftDelay = SofaFile.Delay[0];
+      RightDelay = SofaFile.Delay[1];
+    end);
+end;
+
+function sofaGetFilterSpherical(SofaFile: TSofaFile; Phi, Theta, Radius: Float): JSofaFilter;
+begin
+  var Index := SofaFile.GetClosestIndexSpherical(Phi, Theta, Radius);
+  Result := JSofaFilter(class
+      SampleRate = SofaFile.SampleRate[0];
+      Left = SofaFile.ImpulseResponse[Index, 0];
+      Right = SofaFile.ImpulseResponse[Index, 1];
+      LeftDelay = SofaFile.Delay[0];
+      RightDelay = SofaFile.Delay[1];
+    end);
 end;
 
 end.

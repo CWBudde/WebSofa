@@ -3,7 +3,7 @@ unit Demo.Hrtf;
 interface
 
 uses
-  ECMA.TypedArray, SofaFile;
+  ECMA.TypedArray, SimpleSofaFile;
 
 type
   THrtfMeasurement = class
@@ -73,24 +73,24 @@ begin
   Assert(SofaFile.NumberOfMeasurements = SofaFile.NumberOfSources);
 
   // find minimum z position
-  var MinZ := Abs(SofaFile.SourcePositions[0].Z);
+  var MinZ := Abs(SofaFile.SourcePositions.GetPosition(0, False)[2]);
   for var MeasurementIndex := 1 to SofaFile.NumberOfMeasurements - 1 do
   begin
-    var Position := SofaFile.SourcePositions[MeasurementIndex];
-    if Abs(Position.Z) < MinZ then
-      MinZ := Abs(Position.Z);
+    var Position := SofaFile.SourcePositions.GetPosition(MeasurementIndex, False);
+    if Abs(Position[2]) < MinZ then
+      MinZ := Abs(Position[2]);
   end;
 
   for var MeasurementIndex := 0 to SofaFile.NumberOfMeasurements - 1 do
   begin
+    var Position := SofaFile.SourcePositions.GetPosition(MeasurementIndex, False);
     // only consider the horizontal plane (more or less)
-    if Abs(SofaFile.SourcePositions[MeasurementIndex].Z) > MinZ then
+    if Abs(Position[2]) > MinZ then
       continue;
 
     Assert(SofaFile.NumberOfReceivers >= 2);
 
-    FMeasurements.Add(THrtfMeasurement.Create(
-      SofaFile.SourcePositions[MeasurementIndex],
+    FMeasurements.Add(THrtfMeasurement.Create(Position,
       JFloat32Array.Create(JFloat32Array(SofaFile.ImpulseResponse[MeasurementIndex, 0])),
       JFloat32Array.Create(JFloat32Array(SofaFile.ImpulseResponse[MeasurementIndex, 1]))));
   end;

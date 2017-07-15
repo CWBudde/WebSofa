@@ -4,7 +4,7 @@ interface
 
 uses
   WHATWG.Console, WHATWG.XHR, ECMA.TypedArray, W3C.DOM4, W3C.Html5,
-  W3C.FileAPI, W3C.WebAudio, HdfFile, SofaFile,
+  W3C.FileAPI, W3C.WebAudio, SimpleSofaFile,
   Demo.Framework, Demo.Audio, Demo.Hrtf;
 
 type
@@ -50,8 +50,8 @@ type
     FSofaFile: TSofaFile;
     FPlane2D: TPlane2D;
     FGlyphs: array of TGlyph;
-    FHrtfs: THrtfs;
     FTracks: array of TTrack;
+    FHrtfs: THrtfs;
 
     procedure AddText(Text: String);
     procedure LoadSofaFile(Buffer: JArrayBuffer);
@@ -198,8 +198,7 @@ end;
 
 procedure TMainScreen.LoadSofaFile(Buffer: JArrayBuffer);
 begin
-  FSofaFile := TSofaFile.Create;
-  FSofaFile.LoadFromBuffer(Buffer);
+  FSofaFile := sofaLoadFile(Buffer);
   PrintFileInformation;
   PrepareHrtfs;
 end;
@@ -212,12 +211,12 @@ begin
   begin
     var Track := TTrack.Create(TrackName, lambda(Sender: TObject) end);
 
+    // loop track if it ends
     Track.OnEnded := lambda(Sender: TObject);
       TTrack(Sender).AudioBufferSource.Start(GAudioContext.currentTime);
     end;
 
     FTracks.Add(Track);
-
     FGlyphs.Add(TGlyph.Create(Self as IHtmlElementOwner, TrackName));
   end;
 end;
@@ -225,40 +224,30 @@ end;
 procedure TMainScreen.PrintFileInformation;
 begin
   FTextArea.Value := '';
-  if FSofaFile.Title <> '' then
-    AddText('Title: ' + FSofaFile.Title);
-  if FSofaFile.DataType <> '' then
-    AddText('DataType: ' + FSofaFile.DataType);
-  if FSofaFile.RoomType <> '' then
-    AddText('RoomType: ' + FSofaFile.RoomType);
-  if FSofaFile.RoomLocation <> '' then
-    AddText('RoomLocation: ' + FSofaFile.RoomLocation);
-  if FSofaFile.DateCreated <> '' then
-    AddText('DateCreated: ' + FSofaFile.DateCreated);
-  if FSofaFile.DateModified <> '' then
-    AddText('DateModified: ' + FSofaFile.DateModified);
-  if FSofaFile.APIName <> '' then
-    AddText('APIName: ' + FSofaFile.APIName);
-  if FSofaFile.APIVersion <> '' then
-    AddText('APIVersion: ' + FSofaFile.APIVersion);
-  if FSofaFile.AuthorContact <> '' then
-    AddText('AuthorContact: ' + FSofaFile.AuthorContact);
-  if FSofaFile.Organization <> '' then
-    AddText('Organization: ' + FSofaFile.Organization);
-  if FSofaFile.License <> '' then
-    AddText('License: ' + FSofaFile.License);
-  if FSofaFile.ApplicationName <> '' then
-    AddText('ApplicationName: ' + FSofaFile.ApplicationName);
-  if FSofaFile.ApplicationVersion <> '' then
-    AddText('ApplicationVersion: ' + FSofaFile.ApplicationVersion);
-  if FSofaFile.Comment <> '' then
-    AddText('Comment: ' + FSofaFile.Comment);
-  if FSofaFile.History <> '' then
-    AddText('History: ' + FSofaFile.History);
-  if FSofaFile.References <> '' then
-    AddText('References: ' + FSofaFile.References);
-  if FSofaFile.Origin <> '' then
-    AddText('Origin: ' + FSofaFile.Origin);
+
+  procedure PrintAttribute(Name: String);
+  begin
+    if FSofaFile.Attributes.has(Name) then
+      if FSofaFile.Attributes.get(Name) <> '' then
+        AddText(Name + ': ' + FSofaFile.Attributes.get(Name));
+  end;
+
+  PrintAttribute('Title');
+  PrintAttribute('DataType');
+  PrintAttribute('RoomType');
+  PrintAttribute('RoomLocation');
+  PrintAttribute('DateCreated');
+  PrintAttribute('DateModified');
+  PrintAttribute('APIName');
+  PrintAttribute('APIVersion');
+  PrintAttribute('AuthorContact');
+  PrintAttribute('Organization');
+  PrintAttribute('License');
+  PrintAttribute('ApplicationName');
+  PrintAttribute('Comment');
+  PrintAttribute('History');
+  PrintAttribute('References');
+  PrintAttribute('Origin');
 
   AddText('');
 
@@ -297,10 +286,10 @@ begin
       if Glyph.Name = Track.Text then
       begin
         var R := FPlane2D.CanvasElement.getBoundingClientRect;
-        var Scale := Sqrt(Sqr(CurrentPosition.X) + Sqr(CurrentPosition.Y));
+        var Scale := Sqrt(Sqr(CurrentPosition[0]) + Sqr(CurrentPosition[1]));
         Glyph.Style.removeProperty('display');
-        Glyph.Style.left := FloatToStr(R.left + 0.5 * R.width - 0.45 * CurrentPosition.Y / Scale * R.width - 16) + 'px';
-        Glyph.Style.top := FloatToStr(R.top + 0.5 * R.height - 0.45 * CurrentPosition.X / Scale * R.height - 16) + 'px';
+        Glyph.Style.left := FloatToStr(R.left + 0.5 * R.width - 0.45 * CurrentPosition[1] / Scale * R.width - 16) + 'px';
+        Glyph.Style.top := FloatToStr(R.top + 0.5 * R.height - 0.45 * CurrentPosition[0] / Scale * R.height - 16) + 'px';
       end;
     end;
 
