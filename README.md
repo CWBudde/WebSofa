@@ -57,4 +57,4 @@ At the moment no HRTF interpolation is performed nor does the library contain an
 ## Disclaimer
 The code slightly relates to [libmysofa](https://github.com/hoene/libmysofa). However, it is written mostly from scratch. Similarities might occur from the fact that both are meant for the same purpose and using the same underlying specification.
 
-However, thanks to [Christian Hoene](christian.hoene@symonics.com) who wrote and published the libmysofa library. Without his reverse engineering of some (rather undocumented) parts of the specification it wouldn't have been possible to create this code.
+However, thanks to [Christian Hoene](mailto:christian.hoene@symonics.com) who wrote and published the libmysofa library. Without his reverse engineering of some (rather undocumented) parts of the specification it wouldn't have been possible to create this code.
